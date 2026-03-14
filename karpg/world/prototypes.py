@@ -182,6 +182,143 @@ BROADSWORD = {
     ],
 }
 
+## ── NPC Prototypes ───────────────────────────────────────────────────────────
+
+GIANT_RAT = {
+    "prototype_key": "GIANT_RAT",
+    "typeclass": "typeclasses.npcs.NPC",
+    "key": "giant rat",
+    "desc": (
+        "A rat the size of a large dog, with matted grey fur, yellowed teeth, "
+        "and beady red eyes. It moves in quick, jerky bursts."
+    ),
+    "attrs": [
+        ("hp",              7),
+        ("hp_max",          7),
+        ("ac",              12),
+        ("level",           1),
+        ("proficiency_bonus", 2),
+        ("ability_scores",  {"str": 7, "dex": 15, "con": 11, "int": 2, "wis": 10, "cha": 4}),
+        ("faction",         "hostile"),
+        ("ai_profile",      "cowardly"),
+        ("damage_resistances",    []),
+        ("damage_vulnerabilities", []),
+        ("damage_immunities",     []),
+        ("xp_value",        25),
+        ("loot_table",      []),
+        ("threat_table",    {}),
+        ("art_key",         "giant_rat"),
+    ],
+}
+
+GOBLIN = {
+    "prototype_key": "GOBLIN",
+    "typeclass": "typeclasses.npcs.NPC",
+    "key": "goblin",
+    "desc": (
+        "A scrawny, green-skinned creature with oversized ears and a wide, "
+        "toothy grin. It clutches a crude blade and looks for an opening."
+    ),
+    "attrs": [
+        ("hp",              10),
+        ("hp_max",          10),
+        ("ac",              13),
+        ("level",           1),
+        ("proficiency_bonus", 2),
+        ("ability_scores",  {"str": 8, "dex": 14, "con": 10, "int": 10, "wis": 8, "cha": 8}),
+        ("faction",         "hostile"),
+        ("ai_profile",      "cowardly"),
+        ("damage_resistances",    []),
+        ("damage_vulnerabilities", []),
+        ("damage_immunities",     []),
+        ("xp_value",        50),
+        ("loot_table",      []),
+        ("threat_table",    {}),
+        ("art_key",         "goblin"),
+    ],
+}
+
+SKELETON = {
+    "prototype_key": "SKELETON",
+    "typeclass": "typeclasses.npcs.NPC",
+    "key": "skeleton",
+    "desc": (
+        "A reanimated human skeleton, its bones yellowed and cracked. Empty "
+        "eye sockets glow with a faint violet light. It moves with unsettling purpose."
+    ),
+    "attrs": [
+        ("hp",              13),
+        ("hp_max",          13),
+        ("ac",              13),
+        ("level",           1),
+        ("proficiency_bonus", 2),
+        ("ability_scores",  {"str": 10, "dex": 14, "con": 15, "int": 6, "wis": 8, "cha": 5}),
+        ("faction",         "hostile"),
+        ("ai_profile",      "tactical"),
+        ("damage_resistances",    []),
+        ("damage_vulnerabilities", ["bludgeoning"]),
+        ("damage_immunities",     ["poison"]),
+        ("xp_value",        50),
+        ("loot_table",      []),
+        ("threat_table",    {}),
+        ("art_key",         "skeleton"),
+    ],
+}
+
+BANDIT = {
+    "prototype_key": "BANDIT",
+    "typeclass": "typeclasses.npcs.NPC",
+    "key": "bandit",
+    "desc": (
+        "A road-worn human with a scarred face and hard eyes. Leather armour "
+        "and a short blade mark them as trouble. They size you up coolly."
+    ),
+    "attrs": [
+        ("hp",              16),
+        ("hp_max",          16),
+        ("ac",              12),
+        ("level",           2),
+        ("proficiency_bonus", 2),
+        ("ability_scores",  {"str": 11, "dex": 12, "con": 12, "int": 10, "wis": 10, "cha": 10}),
+        ("faction",         "hostile"),
+        ("ai_profile",      "tactical"),
+        ("damage_resistances",    []),
+        ("damage_vulnerabilities", []),
+        ("damage_immunities",     []),
+        ("xp_value",        75),
+        ("loot_table",      []),
+        ("threat_table",    {}),
+        ("art_key",         "bandit"),
+    ],
+}
+
+ORC = {
+    "prototype_key": "ORC",
+    "typeclass": "typeclasses.npcs.NPC",
+    "key": "orc",
+    "desc": (
+        "A hulking creature with grey-green skin, a jutting underbite, and small "
+        "black eyes burning with aggression. It rolls its shoulders and charges."
+    ),
+    "attrs": [
+        ("hp",              21),
+        ("hp_max",          21),
+        ("ac",              13),
+        ("level",           2),
+        ("proficiency_bonus", 2),
+        ("ability_scores",  {"str": 16, "dex": 12, "con": 16, "int": 7, "wis": 11, "cha": 10}),
+        ("faction",         "hostile"),
+        ("ai_profile",      "berserker"),
+        ("damage_resistances",    []),
+        ("damage_vulnerabilities", []),
+        ("damage_immunities",     []),
+        ("xp_value",        100),
+        ("loot_table",      []),
+        ("threat_table",    {}),
+        ("art_key",         "orc"),
+    ],
+}
+
 ## ── Example NPC prototypes (commented out) ───────────────────────────────────
 ## example of module-based prototypes using
 ## the variable name as `prototype_key` and

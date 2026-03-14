@@ -30,3 +30,24 @@ class Character(ObjectParent, DefaultCharacter):
             "main_hand": None,
             "off_hand": None,
         }
+
+        # Combat stats (5e-style)
+        self.db.hp              = 10
+        self.db.hp_max          = 10
+        self.db.ac              = 10
+        self.db.level           = 1
+        self.db.proficiency_bonus = 2
+        self.db.ability_scores  = {
+            "str": 10, "dex": 10, "con": 10,
+            "int": 10, "wis": 10, "cha": 10,
+        }
+        self.db.conditions      = []
+        self.db.damage_resistances    = []
+        self.db.damage_vulnerabilities = []
+        self.db.damage_immunities     = []
+        self.db.spell_slots     = {}
+        self.db.known_spells    = []
+        self.db.death_saves     = {"successes": 0, "failures": 0}
+        self.db.in_combat       = None
+        self.db.faction         = "player"
+        self.db.xp              = 0
