@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+karp/
+
+# Evennia runtime / database
+karpg/server/evennia.db3
+karpg/server/*.pid
+karpg/server/logs/
+
+# Secret settings (contains Django SECRET_KEY)
+karpg/server/conf/secret_settings.py
+
+# Claude Code local settings
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
