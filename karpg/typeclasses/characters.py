@@ -5,7 +5,6 @@ Characters are (by default) Objects setup to be puppeted by Accounts.
 They are what you "see" in game. The Character class in this module
 is setup to be the "default" character type created by the default
 creation commands.
-
 """
 
 from evennia.objects.objects import DefaultCharacter
@@ -15,39 +14,64 @@ from .objects import ObjectParent
 
 class Character(ObjectParent, DefaultCharacter):
     """
-    The Character just re-implements some of the Object's methods and hooks
-    to represent a Character entity in-game.
+    The Character re-implements some Object hooks to represent a player-
+    controlled entity in-game.
 
-    See mygame/typeclasses/objects.py for a list of
-    properties and methods available on all Object child classes like this.
+    MajorMUD stats:
+        str  — melee damage + accuracy
+        agi  — accuracy, defense, attacks per round
+        int  — mana pool, spell power
+        wis  — mana regeneration
+        hlt  — max HP
+        chm  — merchant prices, social effects
 
+    Combat attributes:
+        hp, hp_max       — current and max hit points
+        mana, max_mana   — current and max mana
+        ac               — armor class (base defense)
+        dr               — damage resistance (flat damage reduction)
+        level
+        formation_rank   — "front" | "mid" | "back"
+        in_combat        — reference to active CombatScript, or None
+        known_spells     — list of spell key strings
+        xp               — total experience points
+        faction          — "player"
     """
 
     def at_object_creation(self):
         super().at_object_creation()
-        # Equipment slots. Two-handed weapons set both slots to the same object.
+
+        # Equipment slots
         self.db.wielded = {
             "main_hand": None,
             "off_hand": None,
         }
 
-        # Combat stats (5e-style)
-        self.db.hp              = 10
-        self.db.hp_max          = 10
-        self.db.ac              = 10
-        self.db.level           = 1
-        self.db.proficiency_bonus = 2
-        self.db.ability_scores  = {
-            "str": 10, "dex": 10, "con": 10,
-            "int": 10, "wis": 10, "cha": 10,
-        }
-        self.db.conditions      = []
-        self.db.damage_resistances    = []
-        self.db.damage_vulnerabilities = []
-        self.db.damage_immunities     = []
-        self.db.spell_slots     = {}
-        self.db.known_spells    = []
-        self.db.death_saves     = {"successes": 0, "failures": 0}
-        self.db.in_combat       = None
-        self.db.faction         = "player"
-        self.db.xp              = 0
+        # MajorMUD stats
+        self.db.str = 10
+        self.db.agi = 10
+        self.db.int = 10
+        self.db.wis = 10
+        self.db.hlt = 10
+        self.db.chm = 10
+
+        # Combat stats
+        self.db.hp      = 40   # 10 + HLT*2(10*2=20) + level*5(1*5=5) → 35 base, round to 40
+        self.db.hp_max  = 40
+        self.db.mana    = 32   # INT*3(10*3=30) + level*2(1*2=2) → 32
+        self.db.max_mana = 32
+        self.db.ac      = 10
+        self.db.dr      = 0
+        self.db.level   = 1
+
+        # Formation
+        self.db.formation_rank = "mid"
+
+        # Status
+        self.db.conditions = []
+        self.db.in_combat  = None
+        self.db.faction    = "player"
+
+        # Spells and progression
+        self.db.known_spells = []
+        self.db.xp           = 0

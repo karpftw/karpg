@@ -1,115 +1,105 @@
 """
 Combat Commands
 
-Player-facing commands for the turn-based combat system.
-Handles initiating combat, attacking, casting spells, dodging, and fleeing.
+Player-facing commands for MajorMUD-style auto-combat.
+
+Combat is automatic on a 4-second tick. These commands modify queued state
+on the CombatScript; the script's at_repeat() consumes the state each round.
+
+Commands:
+    attack <target>   — initiate combat or change target
+    bash              — switch to bash mode (3.3× damage, half attacks)
+    smash             — switch to smash mode (6× damage, 1 attack)
+    backstab <target> — backstab (5× damage, requires stealth — placeholder)
+    cast <spell>      — queue a spell for next round
+    flee              — queue a flee attempt
+    rank <front|mid|back> — change formation rank
+    spells            — list known spells and mana
 """
 
 from evennia import Command
 from evennia.utils.utils import inherits_from
 
-from world.spells import get_spell, SPELL_REGISTRY, list_spells
+from world.spells import get_spell, list_spells, SPELL_REGISTRY
 
+
+def _get_combat_script(location):
+    """Find an active CombatScript in a room. Returns script or None."""
+    if not location:
+        return None
+    for s in location.scripts.all():
+        if inherits_from(s, "typeclasses.combat_script.CombatScript"):
+            if s.db.active:
+                return s
+    return None
+
+
+# ---------------------------------------------------------------------------
+# CmdAttack
+# ---------------------------------------------------------------------------
 
 class CmdAttack(Command):
     """
-    Attack a target with your wielded weapon.
+    Attack a target, initiating combat if not already in one.
 
     Usage:
         attack <target>
-        attack <target> with <weapon>
+        kill <target>
 
-    Initiates combat if not already in an encounter. If combat is active,
-    resolves your attack on your turn.
-
-    Aliases: kill, hit
+    If already in combat, changes your current target.
     """
 
     key = "attack"
-    aliases = ["kill", "hit"]
+    aliases = ["kill", "a"]
     help_category = "Combat"
     locks = "cmd:all()"
 
-    def parse(self):
-        """Parse target and optional weapon from args."""
-        self.target_name = ""
-        self.weapon_name = ""
-
-        args = self.args.strip()
-        if not args:
-            return
-
-        if " with " in args:
-            parts = args.split(" with ", 1)
-            self.target_name = parts[0].strip()
-            self.weapon_name = parts[1].strip()
-        else:
-            self.target_name = args
-
     def func(self):
-        """Execute the attack command."""
         caller = self.caller
+        args = self.args.strip()
 
-        if not self.target_name:
-            caller.msg("|rUsage: attack <target> [with <weapon>]|n")
+        if not args:
+            caller.msg("|rUsage: attack <target>|n")
             return
 
-        # Find target in the room
-        target = caller.search(self.target_name, location=caller.location)
+        target = caller.search(args, location=caller.location)
         if not target:
             return
 
-        # Don't attack yourself
         if target == caller:
             caller.msg("|rYou can't attack yourself.|n")
             return
 
-        # Find weapon if specified
-        weapon = None
-        if self.weapon_name:
-            weapon = caller.search(self.weapon_name, location=caller)
-            if not weapon:
+        if (caller.db.hp or 0) <= 0:
+            caller.msg("|rYou are too injured to fight!|n")
+            return
+
+        script = _get_combat_script(caller.location)
+
+        if script:
+            combatants = script.ndb.combatants or {}
+            if caller in combatants:
+                # Already in combat — just change target
+                script.set_target(caller, target)
+                caller.msg(f"|yYou focus your attacks on {target.key}.|n")
                 return
-            if not inherits_from(weapon, "typeclasses.weapons.Weapon"):
-                caller.msg(f"|r{weapon.key} is not a weapon.|n")
+            else:
+                # Join the existing fight
+                faction = getattr(caller.db, "faction", "player") or "player"
+                script.add_combatant(caller, target, faction)
+                caller.msg(f"|RYou enter the fray targeting {target.key}!|n")
                 return
-        else:
-            # Use main hand weapon
-            wielded = caller.db.wielded or {}
-            weapon = wielded.get("main_hand")
 
-        # Check for active combat script in the room
-        combat_script = self._get_combat_script()
-
-        if combat_script and combat_script.db.active:
-            # Combat already active — submit action
-            combat_script.receive_action(
-                caller, "attack", target=target, weapon=weapon
-            )
-        else:
-            # Initiate new combat
-            self._start_combat(target)
-
-    def _get_combat_script(self):
-        """Find an active combat script in the caller's location."""
-        if not self.caller.location:
-            return None
-        scripts = self.caller.location.scripts.all()
-        for s in scripts:
-            if inherits_from(s, "typeclasses.combat_script.CombatScript"):
-                if s.db.active:
-                    return s
-        return None
+        # Start a new combat encounter
+        self._start_combat(target)
 
     def _start_combat(self, target):
-        """Create a new combat script and begin the encounter."""
         from typeclasses.combat_script import CombatScript
         import evennia
 
         caller = self.caller
         room = caller.location
 
-        # Create the combat script on the room
         script = evennia.create_script(
             CombatScript,
             obj=room,
@@ -117,165 +107,200 @@ class CmdAttack(Command):
             persistent=True,
             autostart=False,
         )
+        script.begin_combat(caller, [target])
 
-        # Gather targets — for now just the single target
-        targets = [target]
 
-        # Begin combat
-        script.begin_combat(caller, targets)
+# ---------------------------------------------------------------------------
+# CmdBash
+# ---------------------------------------------------------------------------
 
+class CmdBash(Command):
+    """
+    Switch to BASH attack mode for the next round.
+
+    Usage:
+        bash
+
+    Bash deals 3.3× weapon damage but reduces your accuracy by 40% and
+    cuts your attacks per round in half.
+    """
+
+    key = "bash"
+    aliases = ["aa"]
+    help_category = "Combat"
+    locks = "cmd:all()"
+
+    def func(self):
+        caller = self.caller
+        script = _get_combat_script(caller.location)
+        if not script or caller not in (script.ndb.combatants or {}):
+            caller.msg("|rYou are not in combat.|n")
+            return
+        script.set_attack_mode(caller, "bash")
+        caller.msg("|MYou wind up for a BASH!|n")
+
+
+# ---------------------------------------------------------------------------
+# CmdSmash
+# ---------------------------------------------------------------------------
+
+class CmdSmash(Command):
+    """
+    Switch to SMASH attack mode for the next round.
+
+    Usage:
+        smash
+
+    Smash deals 6× weapon damage but greatly reduces accuracy and you only
+    get one attack per round.
+    """
+
+    key = "smash"
+    help_category = "Combat"
+    locks = "cmd:all()"
+
+    def func(self):
+        caller = self.caller
+        script = _get_combat_script(caller.location)
+        if not script or caller not in (script.ndb.combatants or {}):
+            caller.msg("|rYou are not in combat.|n")
+            return
+        script.set_attack_mode(caller, "smash")
+        caller.msg("|RYou ready yourself for a massive SMASH!|n")
+
+
+# ---------------------------------------------------------------------------
+# CmdBackstab
+# ---------------------------------------------------------------------------
+
+class CmdBackstab(Command):
+    """
+    Backstab a target for massive damage (requires hiding).
+
+    Usage:
+        backstab <target>
+        bs <target>
+
+    Deals 5× weapon damage on a single hit. You must be hiding (future
+    feature — currently always available but telegraphed to the target).
+    """
+
+    key = "backstab"
+    aliases = ["bs"]
+    help_category = "Combat"
+    locks = "cmd:all()"
+
+    def func(self):
+        caller = self.caller
+        args = self.args.strip()
+
+        script = _get_combat_script(caller.location)
+
+        if script and caller in (script.ndb.combatants or {}):
+            # Already in combat — switch mode
+            if args:
+                target = caller.search(args, location=caller.location)
+                if not target:
+                    return
+                script.set_target(caller, target)
+            script.set_attack_mode(caller, "backstab")
+            caller.msg("|xYou move into position for a BACKSTAB...|n")
+            return
+
+        if not args:
+            caller.msg("|rUsage: backstab <target>|n")
+            return
+
+        target = caller.search(args, location=caller.location)
+        if not target:
+            return
+        if target == caller:
+            caller.msg("|rYou can't backstab yourself.|n")
+            return
+
+        # Start combat in backstab mode
+        from typeclasses.combat_script import CombatScript
+        import evennia
+
+        new_script = evennia.create_script(
+            CombatScript,
+            obj=caller.location,
+            key="combat",
+            persistent=True,
+            autostart=False,
+        )
+        new_script.begin_combat(caller, [target])
+        # Set mode after begin_combat registers us
+        new_script.set_attack_mode(caller, "backstab")
+        caller.msg("|xYou slip into the shadows to backstab...|n")
+
+
+# ---------------------------------------------------------------------------
+# CmdCast
+# ---------------------------------------------------------------------------
 
 class CmdCast(Command):
     """
-    Cast a spell at a target.
+    Cast a spell at your current target.
 
     Usage:
-        cast <spell>
-        cast <spell> at <target>
+        cast <spell name>
+        c <spell name>
 
-    Cantrips do not consume spell slots. Levelled spells require an
-    available slot of the appropriate level.
-
-    For AoE spells, the spell hits all enemies if no specific target
-    is given.
+    The spell fires on the next combat round. Requires sufficient mana.
+    Use 'spells' to see available spells and your mana pool.
     """
 
     key = "cast"
+    aliases = ["c"]
     help_category = "Combat"
     locks = "cmd:all()"
 
-    def parse(self):
-        """Parse spell name and optional target."""
-        self.spell_name = ""
-        self.target_name = ""
-
+    def func(self):
+        caller = self.caller
         args = self.args.strip()
+
         if not args:
+            caller.msg("|rUsage: cast <spell name>|n")
             return
 
-        if " at " in args:
-            parts = args.split(" at ", 1)
-            self.spell_name = parts[0].strip()
-            self.target_name = parts[1].strip()
-        else:
-            self.spell_name = args
+        spell = get_spell(args)
+        if not spell:
+            # Try partial match
+            matches = [s for k, s in SPELL_REGISTRY.items() if args.lower() in k]
+            if len(matches) == 1:
+                spell = matches[0]
+            elif len(matches) > 1:
+                names = ", ".join(s["key"] for s in matches)
+                caller.msg(f"|rAmbiguous spell name. Did you mean: {names}?|n")
+                return
+            else:
+                caller.msg(f"|rUnknown spell: '{args}'. Type 'spells' to see your spellbook.|n")
+                return
 
-    def func(self):
-        """Execute the cast command."""
-        caller = self.caller
-
-        if not self.spell_name:
-            caller.msg("|rUsage: cast <spell> [at <target>]|n")
-            return
-
-        # Look up the spell
-        spell_dict = get_spell(self.spell_name)
-        if not spell_dict:
-            caller.msg(f"|rUnknown spell: {self.spell_name}|n")
-            return
-
-        # Check if the caster knows the spell
         known = caller.db.known_spells or []
-        if known and spell_dict["key"] not in known:
-            caller.msg(f"|rYou don't know {spell_dict['key']}.|n")
+        if spell["key"] not in known:
+            caller.msg(f"|rYou don't know '{spell['key']}'.|n")
             return
 
-        # Check spell slots (cantrips are free)
-        spell_level = spell_dict.get("level", 0)
-        if spell_level > 0:
-            slots = caller.db.spell_slots or {}
-            slot_key = str(spell_level)
-            remaining = slots.get(slot_key, 0)
-            if remaining <= 0:
-                caller.msg(
-                    f"|rNo level {spell_level} spell slots remaining!|n"
-                )
-                return
-
-        # Find combat script
-        combat_script = self._get_combat_script()
-        if not combat_script or not combat_script.db.active:
-            caller.msg("|rYou can only cast combat spells during combat.|n")
+        mana = caller.db.mana or 0
+        cost = spell["mana_cost"]
+        if mana < cost:
+            caller.msg(f"|rNot enough mana! (need {cost}, have {mana})|n")
             return
 
-        # Determine targets
-        targets = []
-        if self.target_name:
-            target = caller.search(self.target_name,
-                                   location=caller.location)
-            if not target:
-                return
-            targets = [target]
-        elif spell_dict.get("aoe"):
-            # AoE: target all enemies
-            factions = combat_script.db.factions or {}
-            my_faction = factions.get(caller.id, "player")
-            order = combat_script.db.initiative_order or []
-            for c, _ in order:
-                c_faction = factions.get(c.id, "unknown")
-                if c_faction != my_faction:
-                    c_hp = c.db.hp if c.db.hp is not None else 0
-                    if c_hp > 0:
-                        targets.append(c)
-            if not targets:
-                caller.msg("|rNo valid targets for this spell.|n")
-                return
-
-        combat_script.receive_action(
-            caller, "cast", spell=spell_dict, targets=targets
-        )
-
-    def _get_combat_script(self):
-        """Find an active combat script in the caller's location."""
-        if not self.caller.location:
-            return None
-        scripts = self.caller.location.scripts.all()
-        for s in scripts:
-            if inherits_from(s, "typeclasses.combat_script.CombatScript"):
-                if s.db.active:
-                    return s
-        return None
-
-
-class CmdPass(Command):
-    """
-    Take the Dodge action — skip your attack and gain defensive benefits.
-
-    Usage:
-        pass
-        dodge
-        wait
-
-    Until your next turn, attack rolls against you have disadvantage.
-    """
-
-    key = "pass"
-    aliases = ["dodge", "wait"]
-    help_category = "Combat"
-    locks = "cmd:all()"
-
-    def func(self):
-        """Execute the pass/dodge command."""
-        caller = self.caller
-
-        combat_script = self._get_combat_script()
-        if not combat_script or not combat_script.db.active:
-            caller.msg("|rYou're not in combat.|n")
+        script = _get_combat_script(caller.location)
+        if not script or caller not in (script.ndb.combatants or {}):
+            caller.msg("|rYou are not in combat. Use 'attack' to initiate combat first.|n")
             return
 
-        combat_script.receive_action(caller, "pass")
+        script.queue_spell(caller, spell["key"])
+        caller.msg(f"|CYou prepare to cast |W{spell['key'].title()}|C...|n |x({cost} mana)|n")
 
-    def _get_combat_script(self):
-        """Find an active combat script in the caller's location."""
-        if not self.caller.location:
-            return None
-        scripts = self.caller.location.scripts.all()
-        for s in scripts:
-            if inherits_from(s, "typeclasses.combat_script.CombatScript"):
-                if s.db.active:
-                    return s
-        return None
 
+# ---------------------------------------------------------------------------
+# CmdFlee
+# ---------------------------------------------------------------------------
 
 class CmdFlee(Command):
     """
@@ -283,45 +308,77 @@ class CmdFlee(Command):
 
     Usage:
         flee
-        run
-        escape
+        break
+        fl
 
-    Makes an opposed DEX check against the highest-DEX enemy.
-    On failure, you lose your turn and the enemy gets an opportunity attack.
-    On success, you are moved to a random exit.
+    Success depends on your Agility. On success you move to a random exit.
     """
 
     key = "flee"
-    aliases = ["run", "escape"]
+    aliases = ["break", "fl"]
     help_category = "Combat"
     locks = "cmd:all()"
 
     def func(self):
-        """Execute the flee command."""
         caller = self.caller
+        script = _get_combat_script(caller.location)
+        if not script or caller not in (script.ndb.combatants or {}):
+            caller.msg("|rYou are not in combat.|n")
+            return
+        script.queue_flee(caller)
+        caller.msg("|YYou look for an opening to escape...|n")
 
-        combat_script = self._get_combat_script()
-        if not combat_script or not combat_script.db.active:
-            caller.msg("|rYou're not in combat.|n")
+
+# ---------------------------------------------------------------------------
+# CmdRank
+# ---------------------------------------------------------------------------
+
+class CmdRank(Command):
+    """
+    Change your formation rank.
+
+    Usage:
+        rank <front|mid|back>
+
+    front — +15 accuracy, -10 defense
+    mid   — no modifier (default)
+    back  — -10 accuracy, +15 defense
+    """
+
+    key = "rank"
+    help_category = "Combat"
+    locks = "cmd:all()"
+
+    def func(self):
+        caller = self.caller
+        args = self.args.strip().lower()
+
+        if args not in ("front", "mid", "back"):
+            caller.msg("|rUsage: rank <front|mid|back>|n")
             return
 
-        combat_script.receive_action(caller, "flee")
+        script = _get_combat_script(caller.location)
+        if script and caller in (script.ndb.combatants or {}):
+            script.set_rank(caller, args)
+        else:
+            # Out of combat — still set formation preference
+            caller.db.formation_rank = args
 
-    def _get_combat_script(self):
-        """Find an active combat script in the caller's location."""
-        if not self.caller.location:
-            return None
-        scripts = self.caller.location.scripts.all()
-        for s in scripts:
-            if inherits_from(s, "typeclasses.combat_script.CombatScript"):
-                if s.db.active:
-                    return s
-        return None
+        msgs = {
+            "front": "|YYou push to the FRONT rank! (+15 acc / -10 def)|n",
+            "mid":   "|wYou settle into the MID rank.|n",
+            "back":  "|CYou fall back to the BACK rank. (-10 acc / +15 def)|n",
+        }
+        caller.msg(msgs[args])
 
+
+# ---------------------------------------------------------------------------
+# CmdSpells
+# ---------------------------------------------------------------------------
 
 class CmdSpells(Command):
     """
-    List your known spells and remaining spell slots.
+    List your known spells and current mana pool.
 
     Usage:
         spells
@@ -332,63 +389,45 @@ class CmdSpells(Command):
     locks = "cmd:all()"
 
     def func(self):
-        """Display known spells and spell slots."""
         caller = self.caller
-
         known = caller.db.known_spells or []
-        slots = caller.db.spell_slots or {}
+        mana = caller.db.mana or 0
+        max_mana = caller.db.max_mana or 0
 
         if not known:
             caller.msg("|xYou don't know any spells.|n")
             return
 
-        lines = []
-        lines.append("")
-        lines.append("|y*" + "─" * 40 + "*|n")
-        lines.append("|y│|n  |YSpellbook|n" + " " * 29 + "|y│|n")
-        lines.append("|y*" + "─" * 40 + "*|n")
+        lines = [""]
+        lines.append("|y*" + "─" * 44 + "*|n")
+        lines.append("|y│|n  |YSpellbook|n" + " " * 33 + "|y│|n")
+        lines.append("|y*" + "─" * 44 + "*|n")
+        mana_bar = _mana_bar(mana, max_mana)
+        lines.append(f"  |CMana:|n {mana_bar} |c{mana}/{max_mana}|n")
+        lines.append("|x" + "-" * 46 + "|n")
 
-        # Spell slots summary
-        if slots:
-            slot_parts = []
-            for lvl in sorted(slots.keys(), key=int):
-                remaining = slots[lvl]
-                slot_parts.append(f"|wLv{lvl}:|n |c{remaining}|n")
-            lines.append(f"  |wSlots:|n {' | '.join(slot_parts)}")
-            lines.append("|x" + "-" * 42 + "|n")
-
-        # Group by level
-        cantrips = []
-        levelled = {}
-        for spell_key in known:
+        for spell_key in sorted(known):
             spell = get_spell(spell_key)
             if not spell:
                 continue
-            if spell["level"] == 0:
-                cantrips.append(spell)
-            else:
-                levelled.setdefault(spell["level"], []).append(spell)
-
-        if cantrips:
-            lines.append("  |wCantrips:|n")
-            for sp in sorted(cantrips, key=lambda s: s["key"]):
-                dmg = sp.get("damage_dice", "-")
-                dtype = sp.get("damage_type", "")
-                stype = sp.get("spell_type", "")
-                lines.append(
-                    f"    |c{sp['key']:<20}|n |x{dmg} {dtype} ({stype})|n"
-                )
-
-        for lvl in sorted(levelled.keys()):
-            remaining = slots.get(str(lvl), 0)
-            lines.append(f"\n  |wLevel {lvl}|n |x({remaining} slots):|n")
-            for sp in sorted(levelled[lvl], key=lambda s: s["key"]):
-                dmg = sp.get("damage_dice", "-")
-                dtype = sp.get("damage_type", "")
-                stype = sp.get("spell_type", "")
-                lines.append(
-                    f"    |c{sp['key']:<20}|n |x{dmg} {dtype} ({stype})|n"
-                )
+            cost = spell["mana_cost"]
+            stype = spell["spell_type"]
+            dmg = spell.get("damage_dice", "-")
+            affordable = "|n" if mana >= cost else "|x"
+            lines.append(
+                f"  {affordable}|c{spell['key']:<22}|n "
+                f"|w{cost:>3}mp|n  |x{dmg} {stype}|n"
+            )
 
         lines.append("")
         caller.msg("\n".join(lines))
+
+
+def _mana_bar(current, maximum, width=10):
+    """Blue mana bar."""
+    if maximum <= 0:
+        filled = 0
+    else:
+        filled = max(0, min(width, round(width * current / maximum)))
+    empty = width - filled
+    return f"|B{'█' * filled}|x{'░' * empty}|n"

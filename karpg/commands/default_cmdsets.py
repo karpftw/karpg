@@ -11,13 +11,21 @@ To create new commands to populate the cmdset, see
 This module wraps the default command sets of Evennia; overloads them
 to add/remove commands from the default lineup. You can create your
 own cmdsets by inheriting from them or directly from `evennia.CmdSet`.
-
 """
 
 from evennia import default_cmds
 
 from .equipment import CmdEquipment, CmdUnwield, CmdWield
-from .combat import CmdAttack, CmdCast, CmdFlee, CmdPass, CmdSpells
+from .combat import (
+    CmdAttack,
+    CmdBash,
+    CmdSmash,
+    CmdBackstab,
+    CmdCast,
+    CmdFlee,
+    CmdRank,
+    CmdSpells,
+)
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -30,20 +38,18 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
     key = "DefaultCharacter"
 
     def at_cmdset_creation(self):
-        """
-        Populates the cmdset
-        """
+        """Populates the cmdset."""
         super().at_cmdset_creation()
-        #
-        # any commands you add below will overload the default ones.
-        #
         self.add(CmdWield)
         self.add(CmdUnwield)
         self.add(CmdEquipment)
         self.add(CmdAttack)
+        self.add(CmdBash)
+        self.add(CmdSmash)
+        self.add(CmdBackstab)
         self.add(CmdCast)
-        self.add(CmdPass)
         self.add(CmdFlee)
+        self.add(CmdRank)
         self.add(CmdSpells)
 
 
@@ -58,13 +64,8 @@ class AccountCmdSet(default_cmds.AccountCmdSet):
     key = "DefaultAccount"
 
     def at_cmdset_creation(self):
-        """
-        Populates the cmdset
-        """
+        """Populates the cmdset."""
         super().at_cmdset_creation()
-        #
-        # any commands you add below will overload the default ones.
-        #
 
 
 class UnloggedinCmdSet(default_cmds.UnloggedinCmdSet):
@@ -76,13 +77,8 @@ class UnloggedinCmdSet(default_cmds.UnloggedinCmdSet):
     key = "DefaultUnloggedin"
 
     def at_cmdset_creation(self):
-        """
-        Populates the cmdset
-        """
+        """Populates the cmdset."""
         super().at_cmdset_creation()
-        #
-        # any commands you add below will overload the default ones.
-        #
 
 
 class SessionCmdSet(default_cmds.SessionCmdSet):
@@ -94,14 +90,5 @@ class SessionCmdSet(default_cmds.SessionCmdSet):
     key = "DefaultSession"
 
     def at_cmdset_creation(self):
-        """
-        This is the only method defined in a cmdset, called during
-        its creation. It should populate the set with command instances.
-
-        As and example we just add the empty base `Command` object.
-        It prints some info.
-        """
+        """Populates the cmdset."""
         super().at_cmdset_creation()
-        #
-        # any commands you add below will overload the default ones.
-        #

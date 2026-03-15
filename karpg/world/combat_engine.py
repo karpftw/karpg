@@ -1,27 +1,32 @@
 """
 Combat Engine
 
-Pure Python combat resolution logic for 5e-style turn-based combat.
-No Evennia imports — this module can be unit-tested without a running server.
+Pure Python MajorMUD-style combat resolution.
+No Evennia imports — can be unit-tested without a running server.
 
-All combatant objects are expected to have a `db` attribute namespace with:
-    ability_scores  (dict)  - {"str": int, "dex": int, ...}
-    level           (int)
-    ac              (int)
-    hp              (int)
-    hp_max          (int)
-    conditions      (list)  - list of condition dicts
-    damage_resistances    (list of str)
-    damage_vulnerabilities (list of str)
-    damage_immunities     (list of str)
-    death_saves     (dict)  - {"successes": int, "failures": int}
-    wielded         (dict)  - {"main_hand": weapon|None, "off_hand": weapon|None}
-    proficiency_bonus (int)
+Expected combatant db attributes:
+    str, agi, int, wis, hlt, chm  — MajorMUD stats (ints)
+    ac                             — armor class
+    dr                             — damage resistance (flat damage reduction)
+    hp, hp_max
+    mana, max_mana
+    level
+    conditions                     — list of condition dicts
+    wielded                        — {"main_hand": weapon|None}
+    formation_rank                 — "front"|"mid"|"back"
 
-Weapon objects are expected to have a `db` namespace with:
-    damage_dice   (str)
-    damage_type   (str)
-    attack_range  (str)  - "melee" | "ranged"
+Expected weapon db attributes:
+    damage_dice   — e.g. "2d6"
+    damage_type   — e.g. "slashing"
+
+Hit formula (MajorMUD): miss_chance = (D² / A²) / 100
+
+Attack mode damage:
+    normal:   DR subtracted after multiplier   — (base × 1.0) − DR
+    bash:     DR subtracted before multiplier  — (base − DR) × 3.3
+    smash:    DR subtracted before multiplier  — (base − DR) × 6.0
+    backstab: Like normal but 5× multiplier
+    crit:     DR subtracted after multiplier   — (max_weapon_dmg × 2–4) − DR
 """
 
 import random
@@ -38,101 +43,32 @@ def roll_die(sides):
 
 
 def roll_dice(num, sides):
-    """Roll *num* dice each with *sides* sides, return list of results."""
+    """Roll num dice each with sides sides, return list of results."""
     return [roll_die(sides) for _ in range(num)]
 
 
 def parse_dice(notation):
     """
-    Parse a dice notation string such as ``"2d6"``, ``"1d4"``, or ``"d8"``.
+    Parse a dice notation string such as "2d6", "1d4", or "d8".
 
-    Returns:
-        (num, sides) tuple of ints.
+    Returns (num, sides) tuple of ints.
     """
     notation = notation.strip().lower()
     if "d" not in notation:
         raise ValueError(f"Invalid dice notation: {notation!r}")
     parts = notation.split("d", 1)
     num = int(parts[0]) if parts[0] else 1
-    sides = int(parts[1])
+    sides = int(parts[1]) if parts[1] else 1
     return num, sides
 
 
 def roll_notation(notation):
-    """
-    Roll dice described by *notation* (e.g. ``"2d6"``).
-
-    Returns:
-        (total, rolls_list) — the sum and individual die results.
-    """
+    """Roll dice from notation string. Returns (total, rolls_list)."""
     num, sides = parse_dice(notation)
+    if sides == 0:
+        return 0, []
     rolls = roll_dice(num, sides)
     return sum(rolls), rolls
-
-
-# ---------------------------------------------------------------------------
-# Ability / proficiency helpers
-# ---------------------------------------------------------------------------
-
-def ability_mod(score):
-    """Return the ability modifier for a given ability score."""
-    return (score - 10) // 2
-
-
-def prof_bonus(level):
-    """Return the proficiency bonus for a given character level."""
-    return 2 + (level - 1) // 4
-
-
-def get_mod(combatant, stat):
-    """
-    Return the ability modifier for *stat* (e.g. ``"str"``, ``"dex"``).
-
-    Reads ``combatant.db.ability_scores``.
-    """
-    scores = combatant.db.ability_scores or {}
-    score = scores.get(stat, 10)
-    return ability_mod(score)
-
-
-# ---------------------------------------------------------------------------
-# d20 rolls
-# ---------------------------------------------------------------------------
-
-def roll_d20(advantage=False, disadvantage=False):
-    """
-    Roll a d20, optionally with advantage or disadvantage.
-
-    If both advantage and disadvantage apply they cancel out (straight roll).
-
-    Returns:
-        (result, rolls_list) — the effective result and all d20s rolled.
-    """
-    if advantage and disadvantage:
-        # Cancel out
-        advantage = disadvantage = False
-
-    if advantage:
-        rolls = roll_dice(2, 20)
-        return max(rolls), rolls
-    elif disadvantage:
-        rolls = roll_dice(2, 20)
-        return min(rolls), rolls
-    else:
-        r = roll_die(20)
-        return r, [r]
-
-
-def roll_initiative(combatant):
-    """
-    Roll initiative for *combatant*: d20 + DEX modifier.
-
-    Returns:
-        (total, d20_roll)
-    """
-    d20 = roll_die(20)
-    dex_mod = get_mod(combatant, "dex")
-    return d20 + dex_mod, d20
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +76,7 @@ def roll_initiative(combatant):
 # ---------------------------------------------------------------------------
 
 def hp_colour(current, maximum):
-    """Return the Evennia colour code for a HP value."""
+    """Return Evennia colour code for a HP value."""
     if maximum <= 0:
         return "|R"
     ratio = current / maximum
@@ -148,17 +84,11 @@ def hp_colour(current, maximum):
         return "|G"
     elif ratio > 0.3:
         return "|Y"
-    else:
-        return "|R"
+    return "|R"
 
 
 def hp_bar(current, maximum, width=10):
-    """
-    Build a coloured HP bar using Unicode block characters.
-
-    Uses ``\u2588`` (full block) for filled and ``\u2591`` (light shade) for
-    empty portions. Colour follows the hp_colour scheme.
-    """
+    """Build a coloured HP bar using Unicode block characters."""
     if maximum <= 0:
         filled = 0
     else:
@@ -169,479 +99,286 @@ def hp_bar(current, maximum, width=10):
 
 
 # ---------------------------------------------------------------------------
-# Saving throws
+# Attack modes
 # ---------------------------------------------------------------------------
 
-def ability_save(combatant, stat, dc):
-    """
-    Roll an ability saving throw for *combatant*.
-
-    Returns:
-        (d20_roll, total, success)
-    """
-    d20 = roll_die(20)
-    mod = get_mod(combatant, stat)
-    total = d20 + mod
-    return d20, total, total >= dc
+ATTACK_MODES = {
+    "normal":    {"multiplier": 1.0,  "accuracy_mod": 1.0,  "attacks": "full"},
+    "bash":      {"multiplier": 3.3,  "accuracy_mod": 0.6,  "attacks": "half"},
+    "smash":     {"multiplier": 6.0,  "accuracy_mod": 0.4,  "attacks": 1},
+    "backstab":  {"multiplier": 5.0,  "accuracy_mod": 1.0,  "attacks": 1},
+}
 
 
 # ---------------------------------------------------------------------------
-# Attack modifiers from conditions
+# Core hit formula
 # ---------------------------------------------------------------------------
 
-def get_attack_modifiers(attacker, defender, is_melee=True):
+def calc_miss_chance(total_defense, total_accuracy):
     """
-    Determine advantage / disadvantage on an attack roll based on conditions
-    of both attacker and defender.
+    MajorMUD miss formula: (D² / A²) / 100.
 
-    Returns:
-        (advantage: bool, disadvantage: bool)
+    Returns float in [0.0, 1.0].
     """
-    # Import here to avoid top-level cross-dependency issues; conditions is
-    # pure Python so this is fine.
-    from .conditions import get_attack_modifiers as _cond_mods
-    return _cond_mods(attacker, defender, is_melee=is_melee)
+    if total_accuracy <= 0:
+        return 1.0
+    raw = (total_defense ** 2) / (total_accuracy ** 2) / 100
+    return min(1.0, max(0.0, raw))
 
 
 # ---------------------------------------------------------------------------
-# Attack result dataclass
+# Result dataclasses
 # ---------------------------------------------------------------------------
 
 @dataclass
 class AttackResult:
-    """Encapsulates the full result of a single weapon attack."""
+    """Full result of a single weapon attack."""
     attacker_name: str = ""
-    defender_name: str = ""
-    weapon_name: str = "Unarmed"
-    d20_rolls: list = field(default_factory=list)
-    d20_result: int = 0
-    attack_bonus: int = 0
-    attack_total: int = 0
-    target_ac: int = 10
-    is_crit: bool = False
-    is_hit: bool = False
-    is_miss: bool = False
-    damage_rolls: list = field(default_factory=list)
-    damage_bonus: int = 0
-    damage_total: int = 0
-    damage_type: str = "bludgeoning"
+    target_name: str = ""
+    mode: str = "normal"
+    hit: bool = False
+    critical: bool = False
+    miss_chance: float = 0.0
+    base_damage: int = 0
+    multiplier: float = 1.0
+    multiplied_damage: int = 0
+    defense_resistance: int = 0
     final_damage: int = 0
-    resistance_applied: bool = False
-    vulnerability_applied: bool = False
-    immunity_applied: bool = False
+    attacker_hp: int = 0
+    attacker_max_hp: int = 1
+    target_hp: int = 0
+    target_max_hp: int = 1
+
+
+@dataclass
+class SpellResult:
+    """Full result of a single spell cast."""
+    caster_name: str = ""
+    target_name: str = ""
+    spell_key: str = ""
+    spell_type: str = "attack"
+    hit: bool = False
+    damage: int = 0
+    heal: int = 0
+    mana_cost: int = 0
+    mana_spent: int = 0
+    condition_applied: str = ""
+    caster_hp: int = 0
+    caster_max_hp: int = 1
+    caster_mana: int = 0
+    caster_max_mana: int = 1
+    target_hp: int = 0
+    target_max_hp: int = 1
 
 
 # ---------------------------------------------------------------------------
 # resolve_attack
 # ---------------------------------------------------------------------------
 
-def resolve_attack(attacker, defender, weapon=None, advantage=False,
-                   disadvantage=False):
+def resolve_attack(attacker, target, mode="normal"):
     """
-    Resolve a single weapon attack (melee or ranged).
+    Resolve a single weapon attack.
 
-    Parameters:
-        attacker   — combatant object with db attributes
-        defender   — combatant object with db attributes
-        weapon     — weapon object (or None for unarmed)
-        advantage  — True if the attacker has advantage
-        disadvantage — True if the attacker has disadvantage
-
-    Returns:
-        An :class:`AttackResult` with all resolution details.
+    Applies damage directly to target.db.hp. Returns AttackResult.
     """
+    from .stats import get_accuracy, get_defense, apply_formation_modifier
+    from .conditions import get_combat_modifiers
+
     result = AttackResult()
     result.attacker_name = attacker.key
-    result.defender_name = defender.key
+    result.target_name = target.key
+    result.mode = mode
 
-    # Determine weapon properties
-    if weapon is not None:
-        result.weapon_name = weapon.key
-        dmg_notation = weapon.db.damage_dice or "1d4"
-        dmg_type = weapon.db.damage_type or "bludgeoning"
-        atk_range = weapon.db.attack_range or "melee"
-    else:
-        dmg_notation = "1d4"
-        dmg_type = "bludgeoning"
-        atk_range = "melee"
+    mode_def = ATTACK_MODES.get(mode, ATTACK_MODES["normal"])
+    acc_scale = mode_def["accuracy_mod"]
+    multiplier = mode_def["multiplier"]
+    result.multiplier = multiplier
 
-    result.damage_type = dmg_type
-    is_melee = atk_range == "melee"
+    # Build accuracy and defense totals
+    accuracy = get_accuracy(attacker) * acc_scale
+    defense = get_defense(target)
 
-    # Ability modifier for attack and damage
-    if is_melee:
-        atk_stat = "str"
-    else:
-        atk_stat = "dex"
-    stat_mod = get_mod(attacker, atk_stat)
-    prof = getattr(attacker.db, "proficiency_bonus", None)
-    if prof is None:
-        prof = prof_bonus(getattr(attacker.db, "level", 1) or 1)
-
-    result.attack_bonus = stat_mod + prof
-
-    # Condition-based advantage/disadvantage
-    cond_adv, cond_dis = get_attack_modifiers(attacker, defender,
-                                               is_melee=is_melee)
-    advantage = advantage or cond_adv
-    disadvantage = disadvantage or cond_dis
-
-    # Check defender conditions for auto-crit on melee
-    auto_crit = False
-    if is_melee:
-        defender_conditions = getattr(defender.db, "conditions", None) or []
-        for cond in defender_conditions:
-            cond_name = cond if isinstance(cond, str) else cond.get("name", "")
-            if cond_name in ("paralyzed", "unconscious"):
-                auto_crit = True
-                break
-
-    # Roll to hit
-    d20_result, d20_rolls = roll_d20(advantage=advantage,
-                                      disadvantage=disadvantage)
-    result.d20_rolls = d20_rolls
-    result.d20_result = d20_result
-    result.target_ac = defender.db.ac or 10
-    result.attack_total = d20_result + result.attack_bonus
-
-    # Natural 1 = auto miss
-    if d20_result == 1:
-        result.is_miss = True
-        result.is_hit = False
-        result.is_crit = False
-        return result
-
-    # Natural 20 = auto crit
-    if d20_result == 20 or auto_crit:
-        result.is_crit = True
-        result.is_hit = True
-    elif result.attack_total >= result.target_ac:
-        result.is_hit = True
-    else:
-        result.is_miss = True
-        result.is_hit = False
-        return result
-
-    # Roll damage
-    num, sides = parse_dice(dmg_notation)
-    if result.is_crit:
-        num *= 2  # Double the number of damage dice on crit
-    rolls = roll_dice(num, sides)
-    result.damage_rolls = rolls
-    result.damage_bonus = stat_mod
-    result.damage_total = max(0, sum(rolls) + stat_mod)
-
-    # Apply resistances / vulnerabilities / immunities
-    final = result.damage_total
-    resistances = getattr(defender.db, "damage_resistances", None) or []
-    vulnerabilities = getattr(defender.db, "damage_vulnerabilities", None) or []
-    immunities = getattr(defender.db, "damage_immunities", None) or []
-
-    if dmg_type in immunities:
-        final = 0
-        result.immunity_applied = True
-    elif dmg_type in vulnerabilities:
-        final = final * 2
-        result.vulnerability_applied = True
-    elif dmg_type in resistances:
-        final = final // 2
-        result.resistance_applied = True
-
-    result.final_damage = max(0, final)
-    return result
-
-
-# ---------------------------------------------------------------------------
-# Spell result dataclass
-# ---------------------------------------------------------------------------
-
-@dataclass
-class SpellResult:
-    """Encapsulates the full result of a spell cast."""
-    caster_name: str = ""
-    spell_name: str = ""
-    is_attack: bool = False
-    d20_rolls: list = field(default_factory=list)
-    d20_result: int = 0
-    attack_bonus: int = 0
-    attack_total: int = 0
-    is_crit: bool = False
-    is_hit: bool = False
-    save_stat: str = ""
-    save_dc: int = 0
-    target_results: list = field(default_factory=list)
-    slot_level: int = 0
-
-
-# ---------------------------------------------------------------------------
-# Spell attack resolution
-# ---------------------------------------------------------------------------
-
-def resolve_spell_attack(caster, target, spell_dict, advantage=False,
-                         disadvantage=False):
-    """
-    Resolve a spell that requires a spell attack roll against a single target.
-
-    Parameters:
-        caster       — combatant object
-        target       — combatant object
-        spell_dict   — spell definition dict (from spells module)
-        advantage    — explicit advantage
-        disadvantage — explicit disadvantage
-
-    Returns:
-        A :class:`SpellResult`.
-    """
-    result = SpellResult()
-    result.caster_name = caster.key
-    result.spell_name = spell_dict.get("key", "Unknown Spell")
-    result.is_attack = True
-    result.slot_level = spell_dict.get("level", 0)
-
-    atk_stat = spell_dict.get("attack_stat", "int")
-    stat_mod = get_mod(caster, atk_stat)
-    prof = getattr(caster.db, "proficiency_bonus", None)
-    if prof is None:
-        prof = prof_bonus(getattr(caster.db, "level", 1) or 1)
-    result.attack_bonus = stat_mod + prof
+    # Formation rank adjustments
+    atk_rank = (getattr(attacker.db, "formation_rank", None) or "mid")
+    def_rank = (getattr(target.db, "formation_rank", None) or "mid")
+    accuracy, _ = apply_formation_modifier(accuracy, 0, atk_rank)
+    _, defense = apply_formation_modifier(0, defense, def_rank)
 
     # Condition modifiers
-    is_melee = spell_dict.get("range", "ranged") == "melee"
-    cond_adv, cond_dis = get_attack_modifiers(caster, target, is_melee=is_melee)
-    advantage = advantage or cond_adv
-    disadvantage = disadvantage or cond_dis
+    cond_acc, cond_def = get_combat_modifiers(attacker, target)
+    accuracy = max(1, accuracy + cond_acc)
+    defense = max(0, defense + cond_def)
 
-    d20_result, d20_rolls = roll_d20(advantage=advantage,
-                                      disadvantage=disadvantage)
-    result.d20_rolls = d20_rolls
-    result.d20_result = d20_result
-    result.attack_total = d20_result + result.attack_bonus
+    miss_chance = calc_miss_chance(defense, accuracy)
+    result.miss_chance = miss_chance
 
-    target_ac = target.db.ac or 10
+    roll = random.random()
+    result.hit = (roll >= miss_chance)
 
-    if d20_result == 1:
-        result.is_hit = False
-        result.is_crit = False
-    elif d20_result == 20:
-        result.is_hit = True
-        result.is_crit = True
-    elif result.attack_total >= target_ac:
-        result.is_hit = True
+    if not result.hit:
+        result.attacker_hp = attacker.db.hp or 0
+        result.attacker_max_hp = attacker.db.hp_max or 1
+        result.target_hp = target.db.hp or 0
+        result.target_max_hp = target.db.hp_max or 1
+        return result
+
+    # Critical: top 5% of successful hits
+    result.critical = (roll >= (1.0 - 0.05))
+
+    # Weapon base damage
+    wielded = getattr(attacker.db, "wielded", None) or {}
+    weapon = wielded.get("main_hand")
+    weapon_notation = "1d4"
+    weapon_sides = 4
+    if weapon and getattr(weapon.db, "damage_dice", None):
+        weapon_notation = weapon.db.damage_dice
+        try:
+            _, weapon_sides = parse_dice(weapon_notation)
+        except ValueError:
+            pass
+
+    base_dmg, _ = roll_notation(weapon_notation)
+    result.base_damage = base_dmg
+
+    dr = _get_dr(target)
+    result.defense_resistance = dr
+
+    if result.critical:
+        # Crit: 2–4× of max weapon damage, then subtract DR
+        crit_mult = random.uniform(2.0, 4.0)
+        raw = int(weapon_sides * crit_mult)
+        result.multiplied_damage = raw
+        result.final_damage = max(0, raw - dr)
+    elif mode in ("bash", "smash"):
+        # DR before multiplier
+        after_dr = max(0, base_dmg - dr)
+        result.multiplied_damage = int(after_dr * multiplier)
+        result.final_damage = result.multiplied_damage
     else:
-        result.is_hit = False
+        # normal/backstab: DR after multiplier
+        result.multiplied_damage = int(base_dmg * multiplier)
+        result.final_damage = max(0, result.multiplied_damage - dr)
 
-    # Roll damage if hit
-    if result.is_hit:
-        dmg_notation = spell_dict.get("damage_dice", "1d6")
-        dmg_type = spell_dict.get("damage_type", "magic")
-        num, sides = parse_dice(dmg_notation)
-        if result.is_crit:
-            num *= 2
-        rolls = roll_dice(num, sides)
-        total_dmg = sum(rolls)
+    # Apply damage
+    target.db.hp = max(0, (target.db.hp or 0) - result.final_damage)
 
-        # Resistances
-        resistances = getattr(target.db, "damage_resistances", None) or []
-        vulnerabilities = getattr(target.db, "damage_vulnerabilities", None) or []
-        immunities = getattr(target.db, "damage_immunities", None) or []
+    # Update threat table if target is an NPC with one
+    _update_threat(target, attacker, result.final_damage)
 
-        final = total_dmg
-        res_applied = False
-        vul_applied = False
-        imm_applied = False
-        if dmg_type in immunities:
-            final = 0
-            imm_applied = True
-        elif dmg_type in vulnerabilities:
-            final *= 2
-            vul_applied = True
-        elif dmg_type in resistances:
-            final //= 2
-            res_applied = True
-
-        result.target_results = [{
-            "target": target,
-            "damage_rolls": rolls,
-            "damage": max(0, final),
-            "damage_type": dmg_type,
-            "resistance_applied": res_applied,
-            "vulnerability_applied": vul_applied,
-            "immunity_applied": imm_applied,
-        }]
-
+    result.attacker_hp = attacker.db.hp or 0
+    result.attacker_max_hp = attacker.db.hp_max or 1
+    result.target_hp = target.db.hp
+    result.target_max_hp = target.db.hp_max or 1
     return result
 
 
+def _get_dr(target):
+    """Get the flat damage resistance value from target."""
+    return getattr(target.db, "dr", 0) or 0
+
+
+def _update_threat(target, attacker, damage):
+    """Update the threat table on an NPC target if it has one."""
+    threat = getattr(target.db, "threat_table", None)
+    if threat is None:
+        return
+    aid = attacker.id
+    threat[aid] = threat.get(aid, 0) + damage
+    target.db.threat_table = threat
+
+
 # ---------------------------------------------------------------------------
-# Spell save resolution
+# resolve_spell
 # ---------------------------------------------------------------------------
 
-def resolve_spell_save(caster, targets_list, spell_dict):
+def resolve_spell(caster, target, spell):
     """
-    Resolve a spell that forces saving throws on one or more targets.
+    Resolve a mana-based spell cast.
 
-    Parameters:
-        caster        — combatant object
-        targets_list  — list of combatant objects
-        spell_dict    — spell definition dict
-
-    Returns:
-        A :class:`SpellResult`.
+    Applies damage/healing directly to target.db.hp and deducts mana from
+    caster.db.mana. Returns SpellResult.
     """
+    from .stats import get_accuracy, get_defense
+    from .conditions import apply_condition
+
     result = SpellResult()
     result.caster_name = caster.key
-    result.spell_name = spell_dict.get("key", "Unknown Spell")
-    result.is_attack = False
-    result.slot_level = spell_dict.get("level", 0)
+    result.target_name = target.key
+    result.spell_key = spell["key"]
+    result.spell_type = spell.get("spell_type", "attack")
+    result.mana_cost = spell.get("mana_cost", 0)
 
-    atk_stat = spell_dict.get("attack_stat", "int")
-    stat_mod = get_mod(caster, atk_stat)
-    prof = getattr(caster.db, "proficiency_bonus", None)
-    if prof is None:
-        prof = prof_bonus(getattr(caster.db, "level", 1) or 1)
+    # Deduct mana (clamped to 0)
+    current_mana = caster.db.mana or 0
+    spent = min(current_mana, result.mana_cost)
+    caster.db.mana = max(0, current_mana - result.mana_cost)
+    result.mana_spent = spent
 
-    save_stat = spell_dict.get("save_stat", "dex")
-    save_dc = 8 + stat_mod + prof
-    result.save_stat = save_stat
-    result.save_dc = save_dc
+    spell_type = result.spell_type
 
-    dmg_notation = spell_dict.get("damage_dice", "0d0")
-    dmg_type = spell_dict.get("damage_type", "magic")
+    if spell_type == "heal":
+        notation = spell.get("damage_dice", "1d6")
+        heal, _ = roll_notation(notation)
+        hp_max = target.db.hp_max or 1
+        target.db.hp = min(hp_max, (target.db.hp or 0) + heal)
+        result.heal = heal
+        result.hit = True
 
-    target_results = []
-    for target in targets_list:
-        save_roll, save_total, saved = ability_save(target, save_stat, save_dc)
-        num, sides = parse_dice(dmg_notation)
-        rolls = roll_dice(num, sides)
-        full_damage = sum(rolls)
+    elif spell_type == "attack":
+        acc = get_accuracy(caster) * spell.get("accuracy_mod", 1.0)
+        defense = get_defense(target)
+        miss_chance = calc_miss_chance(max(0, defense), max(1, acc))
+        result.hit = (random.random() >= miss_chance)
+        if result.hit:
+            notation = spell.get("damage_dice", "1d6")
+            dmg, _ = roll_notation(notation)
+            target.db.hp = max(0, (target.db.hp or 0) - dmg)
+            result.damage = dmg
+            _update_threat(target, caster, dmg)
 
-        if saved:
-            damage = full_damage // 2
-        else:
-            damage = full_damage
+    elif spell_type == "save":
+        # Target rolls their save_stat + d20 vs caster INT-based DC
+        notation = spell.get("damage_dice", "1d6")
+        dmg, _ = roll_notation(notation)
+        save_stat = spell.get("save_stat", "agi")
+        target_stat_val = getattr(target.db, save_stat, 10) or 10
+        caster_int = getattr(caster.db, "int", 10) or 10
+        spell_dc = 10 + caster_int // 3
+        save_roll = roll_die(20) + target_stat_val // 3
+        if save_roll >= spell_dc:
+            dmg = dmg // 2  # half damage on successful save
+        target.db.hp = max(0, (target.db.hp or 0) - dmg)
+        result.damage = dmg
+        result.hit = True
+        _update_threat(target, caster, dmg)
 
-        # Resistances
-        resistances = getattr(target.db, "damage_resistances", None) or []
-        vulnerabilities = getattr(target.db, "damage_vulnerabilities", None) or []
-        immunities = getattr(target.db, "damage_immunities", None) or []
+        # Apply condition if the spell has one and the save failed
+        applies = spell.get("applies_condition")
+        if applies and save_roll < spell_dc:
+            dur = spell.get("condition_duration", -1)
+            apply_condition(target, applies, duration=dur, source=caster.key)
+            result.condition_applied = applies
 
-        if dmg_type in immunities:
-            damage = 0
-        elif dmg_type in vulnerabilities:
-            damage *= 2
-        elif dmg_type in resistances:
-            damage //= 2
-
-        target_results.append({
-            "target": target,
-            "save_roll": save_roll,
-            "save_total": save_total,
-            "saved": saved,
-            "damage_rolls": rolls,
-            "damage": max(0, damage),
-            "damage_type": dmg_type,
-        })
-
-    result.target_results = target_results
+    result.caster_hp = caster.db.hp or 0
+    result.caster_max_hp = caster.db.hp_max or 1
+    result.caster_mana = caster.db.mana or 0
+    result.caster_max_mana = caster.db.max_mana or 1
+    result.target_hp = target.db.hp or 0
+    result.target_max_hp = target.db.hp_max or 1
     return result
 
 
 # ---------------------------------------------------------------------------
-# Magic Missile (auto-hit, special handling)
+# roll_flee
 # ---------------------------------------------------------------------------
 
-def resolve_magic_missile(caster, target):
+def roll_flee(combatant):
     """
-    Resolve *magic missile*: 3 darts, each dealing 1d4+1 force damage.
+    AGI-based flee success check.
 
-    Auto-hit, no attack roll.
-
-    Returns:
-        dict with damage breakdown per dart and total.
+    Base 20% + 1% per AGI point, capped at 90%.
+    Returns True on success.
     """
-    darts = []
-    total_damage = 0
-    for _ in range(3):
-        roll = roll_die(4)
-        dart_dmg = roll + 1
-        darts.append({"roll": roll, "damage": dart_dmg})
-        total_damage += dart_dmg
-
-    return {
-        "caster_name": caster.key,
-        "target_name": target.key,
-        "spell_name": "magic missile",
-        "darts": darts,
-        "total_damage": total_damage,
-        "damage_type": "force",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Death saving throws
-# ---------------------------------------------------------------------------
-
-@dataclass
-class DeathSaveResult:
-    """Encapsulates the result of a single death saving throw."""
-    roll: int = 0
-    is_nat20: bool = False
-    is_nat1: bool = False
-    success: bool = False
-    successes: int = 0
-    failures: int = 0
-    stabilized: bool = False
-    died: bool = False
-
-
-def roll_death_save(combatant):
-    """
-    Roll a death saving throw for *combatant*.
-
-    Reads and writes ``combatant.db.death_saves`` (dict with ``successes``
-    and ``failures`` keys).
-
-    Returns:
-        A :class:`DeathSaveResult`.
-    """
-    saves = combatant.db.death_saves
-    if saves is None:
-        saves = {"successes": 0, "failures": 0}
-        combatant.db.death_saves = saves
-
-    d20 = roll_die(20)
-    result = DeathSaveResult(roll=d20)
-
-    if d20 == 20:
-        # Natural 20: regain 1 HP, clear saves, stabilized
-        result.is_nat20 = True
-        result.success = True
-        result.stabilized = True
-        combatant.db.hp = 1
-        saves["successes"] = 0
-        saves["failures"] = 0
-    elif d20 == 1:
-        # Natural 1: count as 2 failures
-        result.is_nat1 = True
-        result.success = False
-        saves["failures"] += 2
-    elif d20 >= 10:
-        result.success = True
-        saves["successes"] += 1
-    else:
-        result.success = False
-        saves["failures"] += 1
-
-    # Check thresholds
-    if saves["successes"] >= 3:
-        result.stabilized = True
-        saves["successes"] = 0
-        saves["failures"] = 0
-
-    if saves["failures"] >= 3:
-        result.died = True
-
-    result.successes = saves["successes"]
-    result.failures = saves["failures"]
-    combatant.db.death_saves = saves
-    return result
+    agi = getattr(combatant.db, "agi", 10) or 10
+    chance = min(0.9, 0.20 + agi / 100.0)
+    return random.random() < chance

@@ -1,9 +1,9 @@
 """
 NPCs
 
-Typeclass for non-player characters with full 5e-style combat stats.
-NPCs participate in combat as hostiles (or other factions) and are
-driven by the AI profiles in the combat script.
+Typeclass for non-player characters with MajorMUD-style combat stats.
+NPCs participate in combat as hostiles and are driven by the AI in the
+combat script (target selection via threat table).
 """
 
 from evennia.objects.objects import DefaultObject
@@ -13,11 +13,11 @@ from .objects import ObjectParent
 
 
 # ---------------------------------------------------------------------------
-# Display helpers (shared style with weapons.py)
+# Display helpers
 # ---------------------------------------------------------------------------
 
 def _pad(content, width):
-    """Pad *content* with spaces until its visual length equals *width*."""
+    """Pad content with spaces until its visual length equals width."""
     return content + " " * max(0, width - display_len(content))
 
 
@@ -97,55 +97,57 @@ _NPC_ART = {
 
 class NPC(ObjectParent, DefaultObject):
     """
-    A non-player character with combat stats, AI profile, and threat tracking.
+    A non-player character with MajorMUD combat stats, AI profile, and threat
+    tracking.
 
     Key db attributes:
-        hp, hp_max, ac, level, proficiency_bonus
-        ability_scores   - {"str": 10, "dex": 10, ...}
-        conditions       - list of condition dicts
-        damage_resistances, damage_vulnerabilities, damage_immunities
-        faction          - "hostile" by default
-        ai_profile       - "tactical" | "berserker" | "cowardly" | "protective"
-        threat_table     - {attacker_id: cumulative_damage}
-        xp_value         - XP awarded on defeat
-        loot_table       - list of loot dicts (future)
-        wielded          - {"main_hand": obj|None, "off_hand": obj|None}
+        str, agi, int, wis, hlt, chm — MajorMUD stats
+        hp, hp_max
+        ac                           — armor class
+        dr                           — damage resistance
+        level
+        conditions                   — list of condition dicts
+        faction                      — "hostile" by default
+        ai_profile                   — "tactical" | "berserker" | "cowardly"
+        threat_table                 — {attacker_id: cumulative_damage}
+        xp_value                     — XP awarded on defeat
+        loot_table                   — list of loot dicts (future)
+        wielded                      — {"main_hand": obj|None}
+        formation_rank               — always "mid" for NPCs
     """
 
     def at_object_creation(self):
-        """Set default combat stats for a new NPC."""
+        """Set default MajorMUD combat stats for a new NPC."""
         super().at_object_creation()
 
-        # Core combat stats
-        self.db.hp = 10
-        self.db.hp_max = 10
-        self.db.ac = 10
-        self.db.level = 1
-        self.db.proficiency_bonus = 2
+        # MajorMUD stats
+        self.db.str = 10
+        self.db.agi = 10
+        self.db.int = 8
+        self.db.wis = 8
+        self.db.hlt = 10
+        self.db.chm = 6
 
-        # Ability scores
-        self.db.ability_scores = {
-            "str": 10, "dex": 10, "con": 10,
-            "int": 10, "wis": 10, "cha": 10,
-        }
+        # Combat stats
+        self.db.hp      = 20
+        self.db.hp_max  = 20
+        self.db.ac      = 10
+        self.db.dr      = 0
+        self.db.level   = 1
+
+        # Formation (NPCs are always mid)
+        self.db.formation_rank = "mid"
 
         # Status
         self.db.conditions = []
-        self.db.spell_slots = {}
-        self.db.death_saves = {"successes": 0, "failures": 0}
-        self.db.in_combat = None
+        self.db.in_combat  = None
 
         # Faction and AI
-        self.db.faction = "hostile"
-        self.db.ai_profile = "tactical"
-
-        # Damage modifiers
-        self.db.damage_resistances = []
-        self.db.damage_vulnerabilities = []
-        self.db.damage_immunities = []
+        self.db.faction     = "hostile"
+        self.db.ai_profile  = "tactical"
 
         # Rewards
-        self.db.xp_value = 50
+        self.db.xp_value   = 50
         self.db.loot_table = []
 
         # Combat tracking
@@ -163,31 +165,26 @@ class NPC(ObjectParent, DefaultObject):
 
     def at_attacked_by(self, attacker, damage):
         """
-        Called when this NPC takes damage from an attacker.
-
-        Updates the threat table so the AI can prioritise targets.
+        Called when this NPC takes damage. Updates threat table so the AI
+        can prioritise targets.
         """
         threat = self.db.threat_table or {}
-        atk_id = attacker.id
-        threat[atk_id] = threat.get(atk_id, 0) + damage
+        threat[attacker.id] = threat.get(attacker.id, 0) + damage
         self.db.threat_table = threat
 
     def at_death(self, killer):
-        """
-        Called when this NPC is killed.
-
-        Handles loot drops (future hook) and logs the death.
-        """
-        # Future: iterate self.db.loot_table and drop items
+        """Called when this NPC is killed."""
         self.db.hp = 0
         self.db.in_combat = None
+        self.db.threat_table = {}
+        # Future: drop loot from self.db.loot_table
 
     # ------------------------------------------------------------------
     # Appearance
     # ------------------------------------------------------------------
 
     def return_appearance(self, looker, **kwargs):
-        """Infographic-style NPC detail panel with combat stats."""
+        """Infographic-style NPC detail panel with MajorMUD stats."""
         W = 52  # visible width between borders
 
         name = self.get_display_name(looker)
@@ -196,22 +193,17 @@ class NPC(ObjectParent, DefaultObject):
         hp = self.db.hp if self.db.hp is not None else 0
         hp_max = self.db.hp_max if self.db.hp_max is not None else 1
         ac = self.db.ac if self.db.ac is not None else 10
+        dr = self.db.dr if self.db.dr is not None else 0
         level = self.db.level if self.db.level is not None else 1
         faction = self.db.faction or "hostile"
         ai_profile = self.db.ai_profile or "tactical"
-        scores = self.db.ability_scores or {}
 
         # HP colour
         if hp_max > 0:
             ratio = hp / hp_max
         else:
             ratio = 0
-        if ratio > 0.6:
-            hp_col = "|G"
-        elif ratio > 0.3:
-            hp_col = "|Y"
-        else:
-            hp_col = "|R"
+        hp_col = "|G" if ratio > 0.6 else "|Y" if ratio > 0.3 else "|R"
 
         def line(content):
             return f"|x|||n{_pad(content, W)}|x|||n"
@@ -245,37 +237,21 @@ class NPC(ObjectParent, DefaultObject):
 
         lines.append(divider)
         lines.append(stat("Level", f"|w{level}|n"))
-        lines.append(stat("HP",
-                          f"{hp_col}{hp}/{hp_max}|n"))
-        lines.append(stat("AC", f"|w{ac}|n"))
+        lines.append(stat("HP", f"{hp_col}{hp}/{hp_max}|n"))
+        lines.append(stat("AC / DR", f"|w{ac}|n / |w{dr}|n"))
         lines.append(stat("Faction", f"|M{faction}|n"))
         lines.append(stat("AI", f"|w{ai_profile}|n"))
         lines.append(divider)
 
-        # Ability scores in a compact row
-        score_parts = []
-        for s in ("str", "dex", "con", "int", "wis", "cha"):
-            val = scores.get(s, 10)
-            mod = (val - 10) // 2
-            sign = "+" if mod >= 0 else ""
-            score_parts.append(f"|C{s.upper()}|n |w{val}|n|x({sign}{mod})|n")
-        score_line = "  " + "  ".join(score_parts[:3])
-        lines.append(line(score_line))
-        score_line2 = "  " + "  ".join(score_parts[3:])
-        lines.append(line(score_line2))
-
-        # Resistances / vulnerabilities / immunities
-        res = self.db.damage_resistances or []
-        vul = self.db.damage_vulnerabilities or []
-        imm = self.db.damage_immunities or []
-        if res or vul or imm:
-            lines.append(divider)
-            if res:
-                lines.append(line(f"  |GResist:|n {', '.join(res)}"))
-            if vul:
-                lines.append(line(f"  |RVuln:|n  {', '.join(vul)}"))
-            if imm:
-                lines.append(line(f"  |xImmune:|n {', '.join(imm)}"))
+        # MajorMUD stats in two rows
+        stat_keys = ("str", "agi", "int", "wis", "hlt", "chm")
+        stat_labels = ("STR", "AGI", "INT", "WIS", "HLT", "CHM")
+        parts = []
+        for key, label in zip(stat_keys, stat_labels):
+            val = getattr(self.db, key, 10) or 10
+            parts.append(f"|C{label}|n |w{val}|n")
+        lines.append(line("  " + "  ".join(parts[:3])))
+        lines.append(line("  " + "  ".join(parts[3:])))
 
         # Conditions
         conditions = self.db.conditions or []
@@ -294,3 +270,7 @@ class NPC(ObjectParent, DefaultObject):
 
         lines.append(hrule)
         return "\n".join(lines)
+
+
+# Alias so both `npcs.NPC` and `npcs.Npc` work in @create commands
+Npc = NPC
