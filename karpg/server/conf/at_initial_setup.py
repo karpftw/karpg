@@ -16,4 +16,5 @@ does what you expect it to.
 
 
 def at_initial_setup():
-    pass
+    from world.newhaven import build_newhaven
+    build_newhaven()

@@ -26,6 +26,7 @@ from .combat import (
     CmdRank,
     CmdSpells,
 )
+from .map import CmdMap
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -51,6 +52,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdFlee)
         self.add(CmdRank)
         self.add(CmdSpells)
+        self.add(CmdMap)
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):
