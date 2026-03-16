@@ -5,9 +5,7 @@ Commands describe the input the account can do to the game.
 
 """
 
-from evennia.commands.command import Command as BaseCommand
-
-# from evennia import default_cmds
+from evennia.commands.default.muxcommand import MuxCommand as BaseCommand
 
 
 class Command(BaseCommand):
@@ -30,7 +28,11 @@ class Command(BaseCommand):
     #     - at_post_cmd(): Extra actions, often things done after
     #         every command, like prompts.
     #
-    pass
+
+    def at_post_cmd(self):
+        """Send the status prompt after every command."""
+        if hasattr(self.caller, "get_prompt"):
+            self.caller.msg(self.caller.get_prompt())
 
 
 # -------------------------------------------------------------

@@ -415,30 +415,24 @@ class CombatScript(DefaultScript):
             self._send(target, f"{caster.key}'s |W{spell_name}|n fizzles!")
 
     def _broadcast_hp_status(self):
-        """Send end-of-round HP status to each combatant."""
+        """Send end-of-round status to each player combatant."""
         combatants = self.ndb.combatants or {}
         if len(combatants) < 2:
             return
 
-        players = [c for c, s in combatants.items() if s["faction"] == "player"]
-        hostiles = [c for c, s in combatants.items() if s["faction"] == "hostile"]
-
-        for player in players:
-            parts = []
-            # Player's own HP
-            php = player.db.hp or 0
-            phpm = player.db.hp_max or 1
-            col = hp_colour(php, phpm)
-            parts.append(f"|w{player.key}:|n {col}{php}/{phpm} HP|n")
-            # Their current target's HP
-            state = combatants.get(player, {})
+        for player, state in combatants.items():
+            if state["faction"] != "player":
+                continue
+            # Show enemy HP for combat context
             enemy = state.get("target")
             if enemy and enemy in combatants:
-                ehp = enemy.db.hp or 0
+                ehp  = enemy.db.hp or 0
                 ehpm = enemy.db.hp_max or 1
                 ecol = hp_colour(ehp, ehpm)
-                parts.append(f"|w{enemy.key}:|n {ecol}{ehp}/{ehpm} HP|n")
-            self._send(player, "  " + "  |x||n  ".join(parts))
+                self._send(player, f"  |w{enemy.key}:|n {ecol}{ehp}/{ehpm} HP|n")
+            # Player's own status prompt
+            if hasattr(player, "get_prompt"):
+                self._send(player, player.get_prompt())
 
     def _broadcast(self, msg, exclude=None, targets=None):
         """

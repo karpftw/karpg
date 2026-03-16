@@ -10,6 +10,7 @@ creation commands.
 from evennia.objects.objects import DefaultCharacter
 
 from .objects import ObjectParent
+from world.combat_engine import hp_colour
 
 
 class Character(ObjectParent, DefaultCharacter):
@@ -75,3 +76,19 @@ class Character(ObjectParent, DefaultCharacter):
         # Spells and progression
         self.db.known_spells = []
         self.db.xp           = 0
+
+    def get_prompt(self):
+        """Return a MajorMUD-style status line string."""
+        hp     = self.db.hp or 0
+        hp_max = self.db.hp_max or 1
+        mana     = self.db.mana or 0
+        max_mana = self.db.max_mana or 1
+        level = self.db.level or 1
+        xp    = self.db.xp or 0
+
+        col = hp_colour(hp, hp_max)
+        return (
+            f"[|wHP|n: {col}{hp}/{hp_max}|n] "
+            f"[|cMana|n: |C{mana}/{max_mana}|n] "
+            f"[|wLv {level}|n | |yXP: {xp}|n]>"
+        )

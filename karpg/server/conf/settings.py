@@ -34,6 +34,8 @@ from evennia.settings_default import *
 # This is the name of your game. Make it catchy!
 SERVERNAME = "karpg"
 
+COMMAND_DEFAULT_CLASS = "commands.command.Command"
+
 START_LOCATION = "Village Center of Newhaven"
 
 
