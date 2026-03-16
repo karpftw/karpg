@@ -122,10 +122,11 @@ class CombatScript(DefaultScript):
         combatant.db.in_combat = self
 
         # Stop resting if they enter combat
-        rest_scripts = combatant.scripts.get("resting")
-        if rest_scripts:
-            combatant.msg("|rYour rest is interrupted — you are under attack!|n")
-            rest_scripts[0].stop()
+        if combatant.db.is_resting:
+            rest_scripts = combatant.scripts.get("resting")
+            if rest_scripts:
+                combatant.msg("|rYour rest is interrupted — you are under attack!|n")
+                rest_scripts[0].stop()
 
     def remove_combatant(self, combatant):
         """Remove a combatant (they fled, died, or left the room)."""
