@@ -11,6 +11,8 @@ Commands for wielding/unwielding weapons and viewing equipped items.
 from evennia import Command
 from evennia.utils.utils import display_len, inherits_from
 
+from world.stats import get_carry_capacity, get_carried_weight
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -193,74 +195,95 @@ class CmdEquipment(Command):
     help_category = "Combat"
 
     def func(self):
-        caller = self.caller
+        caller  = self.caller
         wielded = _get_wielded(caller)
+        armor_slots = caller.db.armor_slots or {}
 
         main = wielded.get("main_hand")
         off  = wielded.get("off_hand")
 
-        W = 54  # visible characters between the | borders
+        W = 56  # visible characters between the | borders
 
         def line(content):
             return f"|x|||n{_pad(content, W)}|x|||n"
 
-        def weapon_block(weapon, slot_label):
-            rows = []
-
+        def weapon_line(slot_label, weapon):
             if not weapon:
-                rows.append(line(f"  |C{slot_label:<12}|n  |x(empty)|n"))
-                return rows
-
-            name         = weapon.get_display_name(caller)
-            damage_dice  = weapon.db.damage_dice  or "—"
-            damage_type  = weapon.db.damage_type  or "—"
-            weapon_type  = weapon.db.weapon_type  or "—"
-            attack_range = weapon.db.attack_range or "—"
-            speed        = weapon.db.speed        if weapon.db.speed  is not None else 1.0
-            two_handed   = weapon.db.two_handed   or False
-            weight       = weapon.db.weight       if weapon.db.weight is not None else 0.0
-            value        = weapon.db.value        if weapon.db.value  is not None else 0
-            enchants     = weapon.db.enchantments or []
-
+                return line(f"  |C{slot_label:<12}|n  |x(empty)|n")
+            name        = weapon.get_display_name(caller)
+            damage_dice = weapon.db.damage_dice or "—"
+            damage_type = weapon.db.damage_type or "—"
             dmg_col     = _dmg_colour(damage_type)
-            handed_str  = "|rTWO-HANDED|n" if two_handed else "|gone-handed|n"
-            enchant_str = (
-                ", ".join(e.get("name", str(e)) for e in enchants)
-                if enchants else "|x(none)|n"
-            )
+            return line(f"  |C{slot_label:<12}|n  |Y{name}|n  "
+                        f"|x[|n{dmg_col}{damage_dice}|n |x{damage_type}]|n")
 
-            # Column layout: 2 margin + 12 slot + 2 gap + 12 label + 2 gap + value
-            indent = f"  {' ' * 12}  "
+        def armor_row(left_label, left_slot, right_label, right_slot):
+            left_item  = armor_slots.get(left_slot)
+            right_item = armor_slots.get(right_slot)
 
-            rows.append(line(f"  |C{slot_label:<12}|n  |Y{name}|n"))
-            rows.append(line(f"{indent}|C{'Type':<12}|n  "
-                             f"|w{weapon_type.capitalize()}|n  |x[{attack_range}]|n"))
-            rows.append(line(f"{indent}|C{'Damage':<12}|n  "
-                             f"{dmg_col}{damage_dice}|n  {dmg_col}[{damage_type}]|n"))
-            rows.append(line(f"{indent}|C{'Hands':<12}|n  {handed_str}"))
-            rows.append(line(f"{indent}|C{'Speed':<12}|n  |w{speed:.1f}x|n"))
-            rows.append(line(f"{indent}|C{'Weight':<12}|n  |w{weight:.1f} lbs|n"))
-            rows.append(line(f"{indent}|C{'Value':<12}|n  |y{value} gp|n"))
-            rows.append(line(f"{indent}|C{'Enchantments':<12}|n  {enchant_str}"))
-            return rows
+            def item_str(item):
+                if not item:
+                    return "|x(empty)|n"
+                ac = item.db.ac_bonus or 0
+                dr = item.db.dr_bonus or 0
+                bonus = ""
+                if ac:
+                    bonus += f" |g+{ac}AC|n"
+                if dr:
+                    bonus += f" |c+{dr}DR|n"
+                return f"|w{item.get_display_name(caller)}|n{bonus}"
+
+            half = W // 2
+            left_part  = f"  |C{left_label:<11}|n {item_str(left_item)}"
+            right_part = f"  |C{right_label:<11}|n {item_str(right_item)}"
+            padded     = left_part + ' ' * max(0, half - display_len(left_part))
+            return line(padded + right_part)
 
         hrule   = _make_hrule(W)
         divider = _make_divider(W)
 
+        # Totals
+        base_ac = caller.db.base_ac or 10
+        base_dr = caller.db.dr or 0
+        armor_ac = sum((a.db.ac_bonus or 0) for a in armor_slots.values() if a)
+        armor_dr = sum((a.db.dr_bonus or 0) for a in armor_slots.values() if a)
+        total_ac = base_ac + armor_ac
+        total_dr = base_dr  # dr on char already includes armor bonuses
+
+        carried  = caller.db.carrying_weight or get_carried_weight(caller)
+        cap      = get_carry_capacity(caller)
+        carry_col = "|r" if carried > cap else "|g"
+
         lines = []
         lines.append(hrule)
-        lines.append(line(f"  |m*|b~|n |M-- |W EQUIPPED WEAPONS |M--|n |b~|m*|n"))
+        lines.append(line(f"  |m*|b~|n |M-- |W EQUIPMENT |M--|n |b~|m*|n"))
         lines.append(hrule)
 
-        for row in weapon_block(main, "MAIN HAND"):
-            lines.append(row)
-
+        # Weapon section
+        lines.append(weapon_line("MAIN HAND", main))
         if main and off and main is off:
-            lines.append(line(f"  |b~|m*|n |x(two-handed -- occupies both slots)|n"))
+            lines.append(line(f"  |x(two-handed — occupies both slots)|n"))
         else:
-            lines.append(divider)
-            for row in weapon_block(off, "OFF HAND"):
-                lines.append(row)
+            lines.append(weapon_line("OFF HAND", off))
+
+        lines.append(divider)
+
+        # Armor section
+        lines.append(armor_row("Head:",     "head",      "Neck:",       "neck"))
+        lines.append(armor_row("Chest:",    "chest",     "Arms:",       "arms"))
+        lines.append(armor_row("Hands:",    "hands",     "Waist:",      "waist"))
+        lines.append(armor_row("Legs:",     "legs",      "Feet:",       "feet"))
+        lines.append(armor_row("Left Ring:","left_ring", "Right Ring:", "right_ring"))
+
+        lines.append(divider)
+
+        # Totals row
+        lines.append(line(
+            f"  |CTotals|n  "
+            f"AC |w{base_ac}|n+|g{armor_ac}|n=|W{total_ac}|n   "
+            f"DR |w{total_dr}|n   |  "
+            f"Carry: {carry_col}{carried:.1f}|n/|w{cap}|n lbs"
+        ))
 
         lines.append(hrule)
         caller.msg("\n".join(lines))

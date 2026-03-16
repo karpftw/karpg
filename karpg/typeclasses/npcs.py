@@ -158,6 +158,11 @@ class NPC(ObjectParent, DefaultObject):
             "main_hand": None,
             "off_hand": None,
         }
+        self.db.armor_slots = {
+            "head": None, "neck": None, "chest": None, "arms": None,
+            "hands": None, "waist": None, "legs": None, "feet": None,
+            "left_ring": None, "right_ring": None,
+        }
 
     # ------------------------------------------------------------------
     # Combat hooks
