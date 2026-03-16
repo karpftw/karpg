@@ -185,7 +185,7 @@ class CombatScript(DefaultScript):
 
             # NPC target selection
             if state["faction"] != "player":
-                self._npc_pick_target(combatant, state)
+                self._npc_act(combatant, state)
 
             # Ensure target is alive and present
             target = state.get("target")
@@ -210,16 +210,23 @@ class CombatScript(DefaultScript):
                         f"|x{combatant.key} is unable to act!|n", targets=[combatant]
                     )
                     self._send(combatant, "|xYou are unable to act!|n")
+                    if state["faction"] != "hostile":
+                        continue  # players skip entirely when stunned/paralyzed
+                    # MajorMUD rule: monsters always land at least 1 normal attack
+                    n_attacks = 1
+                    effective_mode = "normal"
                 else:
-                    n = get_attacks_per_round(combatant, state["attack_mode"])
-                    for _ in range(n):
-                        if (target.db.hp or 0) <= 0:
-                            break
-                        result = resolve_attack(combatant, target, state["attack_mode"])
-                        self._broadcast_attack(result, combatant, target)
-                        if (target.db.hp or 0) <= 0:
-                            self._handle_death(target, combatant)
-                            break
+                    n_attacks = get_attacks_per_round(combatant, state["attack_mode"])
+                    effective_mode = state["attack_mode"]
+
+                for _ in range(n_attacks):
+                    if (target.db.hp or 0) <= 0:
+                        break
+                    result = resolve_attack(combatant, target, effective_mode)
+                    self._broadcast_attack(result, combatant, target)
+                    if (target.db.hp or 0) <= 0:
+                        self._handle_death(target, combatant)
+                        break
 
         # End-of-round housekeeping
         self._tick_mana_regen()
@@ -527,6 +534,56 @@ class CombatScript(DefaultScript):
             state["target"] = max(enemies, key=lambda c: threat.get(c.id, 0))
         else:
             state["target"] = random.choice(enemies)
+
+    def _npc_act(self, npc, state):
+        """Set target, attack mode, and flee flag based on ai_profile."""
+        combatants = self.ndb.combatants or {}
+        enemies = [
+            c for c, s in combatants.items()
+            if s["faction"] == "player" and (c.db.hp or 0) > 0
+        ]
+        if not enemies:
+            state["target"] = None
+            return
+
+        profile = getattr(npc.db, "ai_profile", None)
+
+        if profile == "tactical":
+            threat = getattr(npc.db, "threat_table", {}) or {}
+            state["target"] = max(enemies, key=lambda c: threat.get(c.id, 0))
+            t = state["target"]
+            if t and (t.db.hp or 0) < (t.db.hp_max or 1) * 0.5:
+                state["attack_mode"] = "bash"
+            else:
+                state["attack_mode"] = "normal"
+
+        elif profile == "berserker":
+            state["target"] = max(enemies, key=lambda c: c.db.hp or 0)
+            last = getattr(npc.ndb, "last_attack_mode", "smash")
+            next_mode = "bash" if last == "smash" else "smash"
+            state["attack_mode"] = next_mode
+            npc.ndb.last_attack_mode = next_mode
+
+        elif profile == "cowardly":
+            state["target"] = min(enemies, key=lambda c: c.db.level or 1)
+            state["attack_mode"] = "normal"
+            hp = npc.db.hp or 0
+            hp_max = npc.db.hp_max or 1
+            if hp / hp_max < 0.30:
+                state["flee_queued"] = True
+
+        elif profile == "protective":
+            threat = getattr(npc.db, "threat_table", {}) or {}
+            if threat:
+                state["target"] = max(enemies, key=lambda c: threat.get(c.id, 0))
+            else:
+                state["target"] = random.choice(enemies)
+            state["attack_mode"] = "normal"
+
+        else:
+            # Default (None or unknown): existing threat-table-or-random logic
+            self._npc_pick_target(npc, state)
+            state["attack_mode"] = state.get("attack_mode") or "normal"
 
     def _find_target(self, combatant, faction):
         """Find a live enemy-faction combatant for combatant to attack."""
