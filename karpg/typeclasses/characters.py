@@ -109,6 +109,7 @@ class Character(ObjectParent, DefaultCharacter):
         # Spells and progression
         self.db.known_spells = []
         self.db.xp           = 0
+        self.db.lives        = 9   # MajorMUD: start with 9 lives; gain 1 per level
 
         # Resting
         self.db.is_resting = False
@@ -125,12 +126,17 @@ class Character(ObjectParent, DefaultCharacter):
         self.msg(self.get_prompt(), options={"send_prompt": True})
 
     def at_after_move(self, source_location, move_type="move", **kwargs):
-        """Interrupt rest if the character moves."""
+        """Interrupt rest and exit combat if the character moves."""
         if self.db.is_resting:
             scripts = self.scripts.get("resting")
             if scripts:
                 self.msg("|yYour rest is interrupted as you move.|n")
                 scripts[0].stop()
+
+        script = self.db.in_combat
+        if script:
+            script.remove_combatant(self)
+            self.msg("|yYou retreat from the fight!|n")
 
     def get_prompt(self):
         """Return a MajorMUD-style status line string."""

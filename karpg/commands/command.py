@@ -32,7 +32,7 @@ class Command(BaseCommand):
     def at_post_cmd(self):
         """Send the status prompt after every command."""
         if hasattr(self.caller, "get_prompt"):
-            self.caller.msg(self.caller.get_prompt())
+            self.caller.msg(self.caller.get_prompt(), options={"send_prompt": True})
 
 
 # -------------------------------------------------------------

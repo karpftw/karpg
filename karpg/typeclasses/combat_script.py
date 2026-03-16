@@ -121,6 +121,12 @@ class CombatScript(DefaultScript):
         }
         combatant.db.in_combat = self
 
+        # Stop resting if they enter combat
+        rest_scripts = combatant.scripts.get("resting")
+        if rest_scripts:
+            combatant.msg("|rYour rest is interrupted — you are under attack!|n")
+            rest_scripts[0].stop()
+
     def remove_combatant(self, combatant):
         """Remove a combatant (they fled, died, or left the room)."""
         combatants = self.ndb.combatants or {}
@@ -176,6 +182,11 @@ class CombatScript(DefaultScript):
 
         # Snapshot so we don't mutate while iterating
         snapshot = list(combatants.items())
+
+        # Sweep: handle any 0-HP combatants left over from previous rounds
+        for combatant, state in snapshot:
+            if (combatant.db.hp or 0) <= 0 and combatant in (self.ndb.combatants or {}):
+                self._handle_death(combatant, None)
 
         for combatant, state in snapshot:
             if combatant not in (self.ndb.combatants or {}):
@@ -312,22 +323,25 @@ class CombatScript(DefaultScript):
             killer.db.xp = (killer.db.xp or 0) + xp_val
             self._send(killer, f"|YYou gain {xp_val} XP.|n")
 
-        # Call NPC death hook
-        if hasattr(victim, "at_death"):
-            victim.at_death(killer)
-
-        # Player death — respawn
+        # Player death — deduct life, heal, respawn
         if getattr(victim.db, "faction", "hostile") == "player":
+            lives = (victim.db.lives or 1) - 1
+            victim.db.lives = max(0, lives)
             victim.db.hp = victim.db.hp_max or 10
-            self._send(victim, "|rYou have been slain!|n |YYou awaken at the starting room.|n")
-            # Move to limbo/start room if possible
+            lives_str = f"  |x({max(0, lives)} lives remaining)|n"
+            self._send(victim, f"|rYou have been slain!|n{lives_str} |YYou awaken at the starting room.|n")
             start = victim.search("Limbo", global_search=True, quiet=True)
             if start:
                 if isinstance(start, list):
                     start = start[0]
                 victim.move_to(start, quiet=True)
 
+        # IMPORTANT: remove from combat BEFORE calling at_death (which may delete obj)
         self.remove_combatant(victim)
+
+        # NPC death hook — schedules respawn + deletes object
+        if hasattr(victim, "at_death"):
+            victim.at_death(killer)
 
     # ------------------------------------------------------------------
     # Broadcasts
@@ -432,7 +446,7 @@ class CombatScript(DefaultScript):
                 self._send(player, f"  |w{enemy.key}:|n {ecol}{ehp}/{ehpm} HP|n")
             # Player's own status prompt
             if hasattr(player, "get_prompt"):
-                self._send(player, player.get_prompt())
+                self._send_prompt(player, player.get_prompt())
 
     def _broadcast(self, msg, exclude=None, targets=None):
         """
@@ -456,12 +470,17 @@ class CombatScript(DefaultScript):
         if hasattr(combatant, "msg"):
             combatant.msg(msg)
 
+    def _send_prompt(self, combatant, msg):
+        """Send a prompt line (no trailing newline) to one combatant."""
+        if hasattr(combatant, "msg"):
+            combatant.msg(msg, options={"send_prompt": True})
+
     # ------------------------------------------------------------------
     # End-of-round housekeeping
     # ------------------------------------------------------------------
 
     def _tick_mana_regen(self):
-        """Regenerate mana for all combatants."""
+        """Regenerate mana (or Kai) for all combatants."""
         for combatant in (self.ndb.combatants or {}):
             regen = get_mana_regen(combatant)
             max_mana = combatant.db.max_mana or 0
@@ -469,6 +488,11 @@ class CombatScript(DefaultScript):
                 combatant.db.mana = min(
                     max_mana,
                     (combatant.db.mana or 0) + regen
+                )
+            elif (combatant.db.max_kai or 0) > 0:
+                combatant.db.kai = min(
+                    combatant.db.max_kai,
+                    (combatant.db.kai or 0) + regen
                 )
 
     def _tick_all_conditions(self):

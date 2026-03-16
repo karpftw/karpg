@@ -13,6 +13,19 @@ from .objects import ObjectParent
 
 
 # ---------------------------------------------------------------------------
+# Respawn helper (module-level so delay() can pickle it)
+# ---------------------------------------------------------------------------
+
+def _respawn_npc(proto_key, location_dbref):
+    """Delayed callback: spawn a fresh NPC at its original location."""
+    from evennia.prototypes.spawner import spawn
+    import evennia
+    location = evennia.search_object(f"#{location_dbref}")
+    if location:
+        spawn({"prototype_parent": proto_key, "location": location[0]})
+
+
+# ---------------------------------------------------------------------------
 # Display helpers
 # ---------------------------------------------------------------------------
 
@@ -178,11 +191,17 @@ class NPC(ObjectParent, DefaultObject):
         self.db.threat_table = threat
 
     def at_death(self, killer):
-        """Called when this NPC is killed."""
-        self.db.hp = 0
-        self.db.in_combat = None
-        self.db.threat_table = {}
-        # Future: drop loot from self.db.loot_table
+        """Schedule respawn then delete self. Called after remove_combatant()."""
+        from evennia.utils.utils import delay as evdelay
+
+        proto_key     = self.db.prototype_key or ""
+        respawn_delay = self.db.respawn_delay or 300
+        loc_dbref     = self.location.dbid if self.location else None
+
+        if proto_key and loc_dbref:
+            evdelay(respawn_delay, _respawn_npc, proto_key, loc_dbref)
+
+        self.delete()
 
     # ------------------------------------------------------------------
     # Appearance

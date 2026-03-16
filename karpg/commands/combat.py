@@ -21,6 +21,7 @@ from evennia import Command
 from evennia.utils.utils import inherits_from
 
 from world.spells import get_spell, list_spells, SPELL_REGISTRY
+from world.classes import can_use_weapon, can_use_spell_school
 
 
 def _get_combat_script(location):
@@ -32,6 +33,34 @@ def _get_combat_script(location):
             if s.db.active:
                 return s
     return None
+
+
+def _check_weapon_allowed(caller):
+    """
+    Check that the caller's equipped weapon is allowed by their class and race.
+
+    Returns (allowed: bool, reason: str).
+    """
+    char_class = getattr(caller.db, "char_class", None)
+    if not char_class:
+        return True, ""
+
+    wielded = caller.db.wielded or {}
+    weapon = wielded.get("main_hand")
+
+    if weapon is None:
+        # Unarmed
+        weapon_type = None
+        two_handed = False
+    else:
+        weapon_type = getattr(weapon.db, "weapon_type", None)
+        two_handed = bool(getattr(weapon.db, "two_handed", False))
+
+    # Race two-handed restriction
+    if two_handed and not (caller.db.race_two_handed_allowed if caller.db.race_two_handed_allowed is not None else True):
+        return False, "Your race cannot use two-handed weapons."
+
+    return can_use_weapon(char_class, weapon_type, two_handed)
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +101,11 @@ class CmdAttack(Command):
 
         if (caller.db.hp or 0) <= 0:
             caller.msg("|rYou are too injured to fight!|n")
+            return
+
+        allowed, reason = _check_weapon_allowed(caller)
+        if not allowed:
+            caller.msg(f"|r{reason}|n")
             return
 
         script = _get_combat_script(caller.location)
@@ -136,6 +170,10 @@ class CmdBash(Command):
         if not script or caller not in (script.ndb.combatants or {}):
             caller.msg("|rYou are not in combat.|n")
             return
+        allowed, reason = _check_weapon_allowed(caller)
+        if not allowed:
+            caller.msg(f"|r{reason}|n")
+            return
         script.set_attack_mode(caller, "bash")
         caller.msg("|MYou wind up for a BASH!|n")
 
@@ -165,6 +203,10 @@ class CmdSmash(Command):
         if not script or caller not in (script.ndb.combatants or {}):
             caller.msg("|rYou are not in combat.|n")
             return
+        allowed, reason = _check_weapon_allowed(caller)
+        if not allowed:
+            caller.msg(f"|r{reason}|n")
+            return
         script.set_attack_mode(caller, "smash")
         caller.msg("|RYou ready yourself for a massive SMASH!|n")
 
@@ -193,6 +235,10 @@ class CmdBackstab(Command):
     def func(self):
         caller = self.caller
         args = self.args.strip()
+
+        if getattr(caller.db, "char_class", None) not in ("thief", None):
+            caller.msg("|rOnly Thieves can backstab.|n")
+            return
 
         script = _get_combat_script(caller.location)
 
@@ -282,6 +328,13 @@ class CmdCast(Command):
         if spell["key"] not in known:
             caller.msg(f"|rYou don't know '{spell['key']}'.|n")
             return
+
+        spell_class_school = spell.get("class_school")
+        char_class = getattr(caller.db, "char_class", None)
+        if char_class and spell_class_school:
+            if not can_use_spell_school(char_class, spell_class_school):
+                caller.msg(f"|rYour class cannot cast {spell_class_school}-school spells.|n")
+                return
 
         mana = caller.db.mana or 0
         cost = spell["mana_cost"]

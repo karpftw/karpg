@@ -24,6 +24,7 @@ Spell dict keys:
 FIRE_BOLT = {
     "key": "fire bolt",
     "school": "evocation",
+    "class_school": "mage",
     "spell_type": "attack",
     "mana_cost": 4,
     "damage_dice": "1d10",
@@ -38,6 +39,7 @@ FIRE_BOLT = {
 CHILL_TOUCH = {
     "key": "chill touch",
     "school": "necromancy",
+    "class_school": "mage",
     "spell_type": "attack",
     "mana_cost": 4,
     "damage_dice": "1d8",
@@ -52,6 +54,7 @@ CHILL_TOUCH = {
 SCORCHING_RAY = {
     "key": "scorching ray",
     "school": "evocation",
+    "class_school": "mage",
     "spell_type": "attack",
     "mana_cost": 10,
     "damage_dice": "3d6",
@@ -66,6 +69,7 @@ SCORCHING_RAY = {
 LIGHTNING_BOLT = {
     "key": "lightning bolt",
     "school": "evocation",
+    "class_school": "mage",
     "spell_type": "attack",
     "mana_cost": 15,
     "damage_dice": "6d6",
@@ -84,6 +88,7 @@ LIGHTNING_BOLT = {
 SACRED_FLAME = {
     "key": "sacred flame",
     "school": "evocation",
+    "class_school": "priest",
     "spell_type": "save",
     "mana_cost": 4,
     "damage_dice": "1d8",
@@ -98,6 +103,7 @@ SACRED_FLAME = {
 BURNING_HANDS = {
     "key": "burning hands",
     "school": "evocation",
+    "class_school": "mage",
     "spell_type": "save",
     "mana_cost": 8,
     "damage_dice": "3d6",
@@ -112,6 +118,7 @@ BURNING_HANDS = {
 FIREBALL = {
     "key": "fireball",
     "school": "evocation",
+    "class_school": "mage",
     "spell_type": "save",
     "mana_cost": 15,
     "damage_dice": "8d6",
@@ -126,6 +133,7 @@ FIREBALL = {
 HOLD_PERSON = {
     "key": "hold person",
     "school": "enchantment",
+    "class_school": "mage",
     "spell_type": "save",
     "mana_cost": 10,
     "damage_dice": "0d0",
@@ -142,6 +150,7 @@ HOLD_PERSON = {
 THUNDERWAVE = {
     "key": "thunderwave",
     "school": "evocation",
+    "class_school": "mage",
     "spell_type": "save",
     "mana_cost": 8,
     "damage_dice": "2d8",
@@ -160,6 +169,7 @@ THUNDERWAVE = {
 CURE_WOUNDS = {
     "key": "cure wounds",
     "school": "evocation",
+    "class_school": "priest",
     "spell_type": "heal",
     "mana_cost": 8,
     "damage_dice": "2d8",
@@ -174,6 +184,7 @@ CURE_WOUNDS = {
 HEAL = {
     "key": "heal",
     "school": "evocation",
+    "class_school": "priest",
     "spell_type": "heal",
     "mana_cost": 20,
     "damage_dice": "6d8",
