@@ -2,9 +2,10 @@
 Chargen Commands
 
 Admin (Builder-permission) commands for setting class and race on characters.
-Used for testing; full player character-creation is deferred.
+CmdChargen lets a player (or admin) re-trigger the chargen menu.
 
 Commands:
+    chargen  — launch (or re-launch) the chargen menu
     setclass [list | <class> | <target>=<class>]
     setrace  [list | <race>  | <target>=<race>]
 """
@@ -14,6 +15,36 @@ from evennia import Command
 from world.classes import get_class, list_classes
 from world.races import get_race, list_races
 from world.stats import recalc_stats
+
+
+class CmdChargen(Command):
+    """
+    Launch the character creation menu.
+
+    Usage:
+        chargen
+
+    Resets chargen_complete and starts the chargen EvMenu.
+    Useful for new characters and for admins testing the flow.
+    """
+
+    key = "chargen"
+    locks = "cmd:all()"
+    help_category = "General"
+
+    def func(self):
+        caller = self.caller
+        # Allow re-entry (useful for testing); clear any stale menu state
+        caller.db.chargen_complete = False
+        caller.ndb.chargen_stats         = None
+        caller.ndb.chargen_pending_race  = None
+        caller.ndb.chargen_pending_class = None
+        caller.ndb.chargen_hair_length   = None
+        caller.ndb.chargen_hair_color    = None
+        caller.ndb.chargen_eye_color     = None
+
+        from world.chargen_menu import start_chargen
+        start_chargen(caller)
 
 
 class CmdSetClass(Command):

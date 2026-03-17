@@ -114,6 +114,15 @@ class Character(ObjectParent, DefaultCharacter):
         # Resting
         self.db.is_resting = False
 
+        # Chargen flag — False triggers the chargen menu on first puppet
+        self.db.chargen_complete = False
+        self.db.cp = 0
+
+        # Appearance (set during chargen)
+        self.db.hair_length = "medium"
+        self.db.hair_color  = "brown"
+        self.db.eye_color   = "brown"
+
         # Calculate derived values and set hp/mana/kai to full
         recalc_stats(self)
         self.db.hp   = self.db.hp_max
@@ -121,9 +130,16 @@ class Character(ObjectParent, DefaultCharacter):
         self.db.kai  = self.db.max_kai
 
     def at_post_puppet(self, **kwargs):
-        """Send the status line immediately when a player connects/puppets."""
+        """Send the status line immediately when a player connects/puppets.
+        For newly created characters (chargen_complete is exactly False),
+        launch the chargen menu instead.
+        """
         super().at_post_puppet(**kwargs)
-        self.msg(self.get_prompt(), options={"send_prompt": True})
+        if self.db.chargen_complete is False:
+            from world.chargen_menu import start_chargen
+            start_chargen(self)
+        else:
+            self.msg(self.get_prompt(), options={"send_prompt": True})
 
     def at_after_move(self, source_location, move_type="move", **kwargs):
         """Interrupt rest and exit combat if the character moves."""
@@ -213,7 +229,16 @@ class Character(ObjectParent, DefaultCharacter):
         else:
             eyes = "a distant, unfocused gaze"
 
-        return f"A {build}. {movement} {eyes.capitalize()} completes the picture."
+        hair_length = self.db.hair_length or "medium"
+        hair_color  = self.db.hair_color  or "brown"
+        eye_color   = self.db.eye_color   or "brown"
+
+        appearance_clause = f"with {hair_length} {hair_color} hair and {eye_color} eyes"
+
+        return (
+            f"A {build} {appearance_clause}. "
+            f"{movement} {eyes.capitalize()} completes the picture."
+        )
 
     def return_appearance(self, looker, **kwargs):
         """Override default look: show procedural description + full gear panel."""

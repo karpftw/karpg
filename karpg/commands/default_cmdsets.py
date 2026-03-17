@@ -28,7 +28,7 @@ from .combat import (
 )
 from .map import CmdMap
 from .resting import CmdRest, CmdStand
-from .chargen import CmdSetClass, CmdSetRace
+from .chargen import CmdChargen, CmdSetClass, CmdSetRace
 from .wearing import CmdWear, CmdRemove
 
 
@@ -58,6 +58,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdMap)
         self.add(CmdRest)
         self.add(CmdStand)
+        self.add(CmdChargen)
         self.add(CmdSetClass)
         self.add(CmdSetRace)
         self.add(CmdWear)
