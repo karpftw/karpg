@@ -317,13 +317,13 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
 
 **Not yet implemented (rough priority order):**
 1. INT-based crit chance (currently flat 5%)
-3. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
-4. Skills system (stealth, lockpick, traps, tracking, perception) — `world/skills.py`
-5. Loot drops (loot_table exists, drop logic not written)
-6. Ranged combat (weapons have attack_range, no mechanic)
-7. CHM → merchant pricing
-8. Merchant NPCs + shop commands (stubs exist in Newhaven, no buy/sell logic)
-9. Trainer NPCs wired into Newhaven (Master Aldric stub exists; TRAIN logic done but NPC not tagged)
-10. Bard class / Bard spell school
-11. Alignment system (Priest good/evil variants)
-12. Additional races (7 more to reach MajorMUD's 13)
+2. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
+3. Skills system (lockpick, traps, tracking, perception) — `world/skills.py`
+4. Loot drops (loot_table exists, drop logic not written)
+5. Ranged combat (weapons have attack_range, no mechanic)
+6. CHM → merchant pricing
+7. Merchant NPCs + shop commands (stubs exist in Newhaven, no buy/sell logic)
+8. Trainer NPCs wired into Newhaven (Master Aldric stub exists; TRAIN logic done but NPC not tagged)
+9. Bard class / Bard spell school
+10. Alignment system (Priest good/evil variants)
+11. Additional races (7 more to reach MajorMUD's 13)
