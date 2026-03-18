@@ -46,6 +46,8 @@ Strict separation of concerns — keep Evennia imports out of `world/`:
 | Commands | `commands/skills.py` | `skills`, `learn`, `pick`, `steal`, `track`, `bandage`, `turn`, `intimidate`, `forage`, `identify`, `search`, `disarm`, `settrap`, `battlecry`, `form` |
 | Commands | `commands/economy.py` | `gold`, `balance`, `deposit`, `withdraw`, `list`, `buy`, `sell`, `drink` |
 | Engine | `world/economy.py` | Pricing math, gold weight, format helpers |
+| Engine | `world/loot.py` | Loot registry (LOOT_TABLES) + `roll_loot()` pure math |
+| Typeclass | `typeclasses/loot.py` | `GoldCoins`, `execute_loot_drop()`, `_decay_loot_item()` |
 | Typeclass | `typeclasses/merchants.py` | Merchant NPC typeclass with shop inventory |
 | Script | `typeclasses/interest_script.py` | Global daily bank interest (1%/day, cap 50k GP) |
 | Script | `typeclasses/combat_script.py` | 4-second tick manager + combatant state |
@@ -356,9 +358,15 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
   First Newhaven Bank room + Teller Oswyn, all 5 shop NPCs wired (Harden, Fletcher,
   Mira, Old Bern, Sister Elara), HEALING_POTION prototype (heals 20 HP, 25 GP base)
 
+- Loot system: `world/loot.py` (LOOT_TABLES registry + `roll_loot()`), `typeclasses/loot.py`
+  (`GoldCoins` auto-consume typeclass, `execute_loot_drop()`, `_decay_loot_item()` decay
+  callback). Animals drop nothing; undead no gold; humanoids gold + rare items. 5-min gold
+  decay / 10-min item decay. Boss override via `db.loot_table` list. Procedural fallback by
+  `faction_type` + `level` for unknown NPC types.
+
 **Not yet implemented (rough priority order):**
 1. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
-2. Loot drops (loot_table exists, drop logic not written)
+2. ~~Loot drops~~ (done)
 3. Ranged combat (weapons have attack_range, no mechanic)
 4. CHM direct merchant pricing (negotiate_discount() used by buy_price(); CHM-only effect not yet added)
 5. Trainer NPCs wired into Newhaven (Master Aldric stub exists; TRAIN logic done but NPC not tagged)

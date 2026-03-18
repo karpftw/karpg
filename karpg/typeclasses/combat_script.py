@@ -354,6 +354,11 @@ class CombatScript(DefaultScript):
             killer.db.xp = (killer.db.xp or 0) + xp_val
             self._send(killer, f"|YYou gain {xp_val} XP.|n")
 
+        # Loot drop (NPC deaths only)
+        if getattr(victim.db, "faction", "player") != "player":
+            from typeclasses.loot import execute_loot_drop
+            execute_loot_drop(victim, victim.location)
+
         # Player death — deduct life, heal, respawn
         if getattr(victim.db, "faction", "hostile") == "player":
             lives = (victim.db.lives or 1) - 1
