@@ -115,6 +115,9 @@ class Character(ObjectParent, DefaultCharacter):
         # Resting
         self.db.is_resting = False
 
+        # Stealth
+        self.db.is_hidden = False
+
         # Chargen flag — False triggers the chargen menu on first puppet
         self.db.chargen_complete = False
         self.db.cp = 0
@@ -143,7 +146,29 @@ class Character(ObjectParent, DefaultCharacter):
             self.msg(self.get_prompt(), options={"send_prompt": True})
 
     def at_after_move(self, source_location, move_type="move", **kwargs):
-        """Interrupt rest and exit combat if the character moves."""
+        """Interrupt rest, break stealth, and exit combat if the character moves."""
+        # Stealth movement checks
+        if self.db.is_hidden:
+            from world.stealth import noise_check, detection_check
+            if not noise_check(self):
+                self.db.is_hidden = False
+                self.msg("|yYou stumble and break stealth!|n")
+            else:
+                # Moved silently — check NPC detection in new room
+                for obj in self.location.contents:
+                    if obj is self:
+                        continue
+                    if not hasattr(obj, "db") or not getattr(obj.db, "ai_profile", None):
+                        continue
+                    if detection_check(self, obj):
+                        self.db.is_hidden = False
+                        self.msg(f"|rThe {obj.key} spots you!|n")
+                        self.location.msg_contents(
+                            f"|r{self.key} emerges from the shadows!|n",
+                            exclude=[self],
+                        )
+                        break
+
         if self.db.is_resting:
             scripts = self.scripts.get("resting")
             if scripts:
@@ -163,6 +188,7 @@ class Character(ObjectParent, DefaultCharacter):
         xp    = self.db.xp or 0
 
         col = hp_colour(hp, hp_max)
+        hidden_tag = "|x[HIDDEN]|n " if self.db.is_hidden else ""
         rest_tag = "|c[REST]|n " if self.db.is_resting else ""
         hp_part = f"[|wHP|n: {col}{hp}/{hp_max}|n]"
 
@@ -188,7 +214,7 @@ class Character(ObjectParent, DefaultCharacter):
         else:
             energy_part = ""
 
-        return f"{rest_tag}{hp_part}{energy_part} {lv_part}"
+        return f"{hidden_tag}{rest_tag}{hp_part}{energy_part} {lv_part}"
 
     # ── appearance ────────────────────────────────────────────────────────────
 

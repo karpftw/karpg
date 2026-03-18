@@ -87,6 +87,13 @@ class CmdAttack(Command):
         caller = self.caller
         args = self.args.strip()
 
+        if caller.db.is_hidden:
+            caller.db.is_hidden = False
+            caller.msg("|yYou step out of the shadows to attack!|n")
+            caller.location.msg_contents(
+                f"|y{caller.key} steps out of the shadows!|n", exclude=[caller]
+            )
+
         if not args:
             caller.msg("|rUsage: attack <target>|n")
             return
@@ -166,6 +173,14 @@ class CmdBash(Command):
 
     def func(self):
         caller = self.caller
+
+        if caller.db.is_hidden:
+            caller.db.is_hidden = False
+            caller.msg("|yYou step out of the shadows to attack!|n")
+            caller.location.msg_contents(
+                f"|y{caller.key} steps out of the shadows!|n", exclude=[caller]
+            )
+
         script = _get_combat_script(caller.location)
         if not script or caller not in (script.ndb.combatants or {}):
             caller.msg("|rYou are not in combat.|n")
@@ -199,6 +214,14 @@ class CmdSmash(Command):
 
     def func(self):
         caller = self.caller
+
+        if caller.db.is_hidden:
+            caller.db.is_hidden = False
+            caller.msg("|yYou step out of the shadows to attack!|n")
+            caller.location.msg_contents(
+                f"|y{caller.key} steps out of the shadows!|n", exclude=[caller]
+            )
+
         script = _get_combat_script(caller.location)
         if not script or caller not in (script.ndb.combatants or {}):
             caller.msg("|rYou are not in combat.|n")
@@ -223,8 +246,8 @@ class CmdBackstab(Command):
         backstab <target>
         bs <target>
 
-    Deals 5× weapon damage on a single hit. You must be hiding (future
-    feature — currently always available but telegraphed to the target).
+    Deals 5× weapon damage on a single hit. You must be hiding first
+    (use the 'hide' command). Only Thieves can backstab.
     """
 
     key = "backstab"
@@ -236,21 +259,16 @@ class CmdBackstab(Command):
         caller = self.caller
         args = self.args.strip()
 
-        if getattr(caller.db, "char_class", None) not in ("thief", None):
+        if getattr(caller.db, "char_class", None) != "thief":
             caller.msg("|rOnly Thieves can backstab.|n")
             return
 
-        script = _get_combat_script(caller.location)
+        if not caller.db.is_hidden:
+            caller.msg("|rYou must be hiding to backstab. Use 'hide' first.|n")
+            return
 
-        if script and caller in (script.ndb.combatants or {}):
-            # Already in combat — switch mode
-            if args:
-                target = caller.search(args, location=caller.location)
-                if not target:
-                    return
-                script.set_target(caller, target)
-            script.set_attack_mode(caller, "backstab")
-            caller.msg("|xYou move into position for a BACKSTAB...|n")
+        if caller.db.in_combat:
+            caller.msg("|rYou cannot backstab while already in combat.|n")
             return
 
         if not args:
@@ -263,6 +281,8 @@ class CmdBackstab(Command):
         if target == caller:
             caller.msg("|rYou can't backstab yourself.|n")
             return
+
+        caller.msg("|xYou strike from the shadows!|n")
 
         # Start combat in backstab mode
         from typeclasses.combat_script import CombatScript
@@ -278,7 +298,6 @@ class CmdBackstab(Command):
         new_script.begin_combat(caller, [target])
         # Set mode after begin_combat registers us
         new_script.set_attack_mode(caller, "backstab")
-        caller.msg("|xYou slip into the shadows to backstab...|n")
 
 
 # ---------------------------------------------------------------------------
@@ -305,6 +324,13 @@ class CmdCast(Command):
     def func(self):
         caller = self.caller
         args = self.args.strip()
+
+        if caller.db.is_hidden:
+            caller.db.is_hidden = False
+            caller.msg("|yYour incantation disrupts your stealth!|n")
+            caller.location.msg_contents(
+                f"|y{caller.key} steps out of the shadows!|n", exclude=[caller]
+            )
 
         if not args:
             caller.msg("|rUsage: cast <spell name>|n")

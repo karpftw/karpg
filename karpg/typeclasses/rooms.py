@@ -21,4 +21,18 @@ class Room(ObjectParent, DefaultRoom):
     properties and methods available on all Objects.
     """
 
-    pass
+    def return_appearance(self, looker, **kwargs):
+        """Filter hidden characters from room contents for non-self lookers."""
+        # Temporarily block view access for hidden non-looker characters
+        hidden_chars = [
+            obj for obj in self.contents
+            if obj is not looker and getattr(obj.db, "is_hidden", False)
+        ]
+        for obj in hidden_chars:
+            obj.locks.add("view:false()")
+        try:
+            result = super().return_appearance(looker, **kwargs)
+        finally:
+            for obj in hidden_chars:
+                obj.locks.remove("view")
+        return result

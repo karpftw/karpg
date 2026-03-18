@@ -40,6 +40,8 @@ Strict separation of concerns — keep Evennia imports out of `world/`:
 | Commands | `commands/map.py` | `map` |
 | Commands | `commands/xp.py` | `xp` — windowed XP table |
 | Commands | `commands/train.py` | `train` — level-up at trainer NPC |
+| Commands | `commands/stealth.py` | `hide` — enter stealth (Thief/Elf/Halfling) |
+| Engine | `world/stealth.py` | Stealth math: score, hide/noise/detection checks |
 | Script | `typeclasses/combat_script.py` | 4-second tick manager + combatant state |
 | Script | `typeclasses/resting_script.py` | Out-of-combat HP regen tick |
 | Typeclasses | `typeclasses/characters.py` | Player character typeclass |
@@ -85,7 +87,7 @@ Strict separation of concerns — keep Evennia imports out of `world/`:
 
 **Characters additionally**: `base_str`, `base_agi`, `base_int`, `base_wis`, `base_hlt`,
 `base_chm` (pre-racial values used by `recalc_stats`), `char_class`, `race`, `cp`,
-`bonus_hp`, `is_resting`, `chargen_complete`,
+`bonus_hp`, `is_resting`, `is_hidden`, `chargen_complete`,
 `hair_length`, `hair_color`, `eye_color`,
 `wielded` (`{"main_hand": obj|None, "off_hand": obj|None}`),
 `armor_slots` (`{"head", "neck", "chest", "arms", "hands", "waist", "legs", "feet",
@@ -309,10 +311,12 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
 - Leveling: `world/xp_tables.py` (XP curves, class/race multipliers, CP-per-level table),
   TRAIN command (trainer NPC presence check, XP threshold, level-up stat recalc, CP award),
   `xp` command (15-row windowed XP table with bracket progress footer)
+- Stealth system: `hide` command (Thief/Elf/Halfling), AGI-based hide/noise/detection checks,
+  room visibility filtering, NPC target exclusion, backstab requires stealth, reveal on
+  attack/cast, `[HIDDEN]` prompt tag (`world/stealth.py`, `commands/stealth.py`)
 
 **Not yet implemented (rough priority order):**
-1. Stealth system (prerequisite for backstab enforcement)
-2. INT-based crit chance (currently flat 5%)
+1. INT-based crit chance (currently flat 5%)
 3. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
 4. Skills system (stealth, lockpick, traps, tracking, perception) — `world/skills.py`
 5. Loot drops (loot_table exists, drop logic not written)

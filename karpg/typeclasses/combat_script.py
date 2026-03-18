@@ -240,6 +240,19 @@ class CombatScript(DefaultScript):
                         self._handle_death(target, combatant)
                         break
 
+                # Reveal after backstab
+                if effective_mode == "backstab" and getattr(combatant.db, "is_hidden", False):
+                    combatant.db.is_hidden = False
+                    combatant.msg("|yYou step out of the shadows after your strike!|n")
+                    if combatant.location:
+                        combatant.location.msg_contents(
+                            f"|y{combatant.key} emerges from the shadows!|n",
+                            exclude=[combatant],
+                        )
+                # Reset backstab to normal after the strike
+                if effective_mode == "backstab":
+                    state["attack_mode"] = "normal"
+
         # End-of-round housekeeping
         self._tick_mana_regen()
         self._tick_all_conditions()
@@ -543,7 +556,9 @@ class CombatScript(DefaultScript):
         combatants = self.ndb.combatants or {}
         enemies = [
             c for c, s in combatants.items()
-            if s["faction"] == "player" and (c.db.hp or 0) > 0
+            if s["faction"] == "player"
+            and (c.db.hp or 0) > 0
+            and not getattr(c.db, "is_hidden", False)
         ]
         if not enemies:
             state["target"] = None
@@ -559,7 +574,9 @@ class CombatScript(DefaultScript):
         combatants = self.ndb.combatants or {}
         enemies = [
             c for c, s in combatants.items()
-            if s["faction"] == "player" and (c.db.hp or 0) > 0
+            if s["faction"] == "player"
+            and (c.db.hp or 0) > 0
+            and not getattr(c.db, "is_hidden", False)
         ]
         if not enemies:
             state["target"] = None

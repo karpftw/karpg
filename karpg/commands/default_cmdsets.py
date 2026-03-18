@@ -33,6 +33,7 @@ from .chargen import CmdChargen, CmdSetClass, CmdSetRace
 from .wearing import CmdWear, CmdRemove
 from .train import CmdTrain
 from .xp import CmdXP
+from .stealth import CmdHide
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -68,6 +69,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdRemove)
         self.add(CmdTrain)
         self.add(CmdXP)
+        self.add(CmdHide)
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):
