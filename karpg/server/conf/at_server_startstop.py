@@ -30,10 +30,23 @@ def at_server_start():
     This is called every time the server starts up, regardless of
     how it was shut down.
     """
-    from world.newhaven import build_newhaven, patch_newhaven_room_types, patch_newhaven_outdoors
+    from world.newhaven import (
+        build_newhaven,
+        patch_newhaven_room_types,
+        patch_newhaven_outdoors,
+        patch_newhaven_merchants,
+        patch_newhaven_bank,
+    )
     build_newhaven()
     patch_newhaven_room_types()
     patch_newhaven_outdoors()
+    patch_newhaven_bank()
+    patch_newhaven_merchants()
+
+    # Start the daily bank interest script if it's not already running
+    import evennia
+    if not evennia.search_script("daily_interest"):
+        evennia.create_script("typeclasses.interest_script.InterestScript")
 
 
 def at_server_stop():

@@ -40,8 +40,10 @@ def get_carry_capacity(combatant):
 
 
 def get_carried_weight(char):
-    """Sum of db.weight for every item in char.contents."""
-    return sum((getattr(item.db, "weight", 0) or 0) for item in char.contents)
+    """Sum of db.weight for every item in char.contents, plus gold weight (0.01 lbs/GP)."""
+    from world.economy import gold_weight
+    item_weight = sum((getattr(item.db, "weight", 0) or 0) for item in char.contents)
+    return item_weight + gold_weight(char)
 
 
 def get_accuracy(combatant):

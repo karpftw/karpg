@@ -182,6 +182,21 @@ BROADSWORD = {
     ],
 }
 
+## ── Consumables ──────────────────────────────────────────────────────────────
+
+HEALING_POTION = {
+    "prototype_key": "HEALING_POTION",
+    "typeclass": "typeclasses.objects.Object",
+    "key": "healing potion",
+    "desc": "A small vial of shimmering red liquid. Drinking it mends wounds.",
+    "attrs": [
+        ("weight",      0.2),
+        ("value",       25),
+        ("item_type",   "consumable"),
+        ("heal_amount", 20),
+    ],
+}
+
 ## ── NPC Prototypes ───────────────────────────────────────────────────────────
 
 GIANT_RAT = {

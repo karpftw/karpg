@@ -393,7 +393,8 @@ def node_confirm(caller, raw_string, **kwargs):
         f"  CP remaining: {cp_remaining}\n\n"
         f"  |yAppearance|n\n"
         f"  Hair: {hair_len} {hair_col}\n"
-        f"  Eyes: {eye_col}\n"
+        f"  Eyes: {eye_col}\n\n"
+        f"  |yStarting gold:|n 50 GP\n"
     )
     options = (
         {"key": ("1", "yes", "y", "confirm"), "desc": "Confirm and enter Newhaven", "goto": "node_chargen_complete"},
@@ -456,7 +457,8 @@ def node_chargen_complete(caller, raw_string, **kwargs):
     caller.db.hair_color  = hair_col
     caller.db.eye_color   = eye_col
 
-    # 6. Mark chargen complete
+    # 6. Award starting gold and mark chargen complete
+    caller.db.gold = 50
     caller.db.chargen_complete = True
 
     # 7. Move to Village Center of Newhaven

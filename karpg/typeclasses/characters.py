@@ -124,6 +124,10 @@ class Character(ObjectParent, DefaultCharacter):
         # Stealth
         self.db.is_hidden = False
 
+        # Economy
+        self.db.gold         = 0   # carried gold (0.01 lbs/GP)
+        self.db.bank_balance = 0   # gold on deposit at bank
+
         # Chargen flag — False triggers the chargen menu on first puppet
         self.db.chargen_complete = False
         self.db.cp = 0
@@ -244,7 +248,10 @@ class Character(ObjectParent, DefaultCharacter):
         else:
             energy_part = ""
 
-        return f"{hidden_tag}{rest_tag}{form_tag}{hp_part}{energy_part} {lv_part}"
+        gold = self.db.gold or 0
+        gold_part = f" [|yGP: {gold:,}|n]"
+
+        return f"{hidden_tag}{rest_tag}{form_tag}{hp_part}{energy_part}{gold_part} {lv_part}"
 
     # ── appearance ────────────────────────────────────────────────────────────
 

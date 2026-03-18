@@ -87,6 +87,30 @@ def _npc(name, location, desc, aliases=None):
     return npc
 
 
+def _merchant(name, location, desc, shop_type, shop_inventory,
+               aliases=None, no_negotiate=False, buys_items=True):
+    """Create a Merchant NPC with shop inventory."""
+    merchant = create_object(
+        typeclass="typeclasses.merchants.Merchant",
+        key=name,
+        aliases=aliases or [],
+        location=location,
+    )
+    merchant.db.desc = desc
+    merchant.db.faction = "neutral"
+    merchant.db.ai_profile = None
+    merchant.db.level = 0
+    merchant.db.hp = 100
+    merchant.db.hp_max = 100
+    merchant.db.threat_table = {}
+    merchant.db.in_combat = None
+    merchant.db.shop_type = shop_type
+    merchant.db.shop_inventory = shop_inventory
+    merchant.db.no_negotiate = no_negotiate
+    merchant.db.buys_items = buys_items
+    return merchant
+
+
 # Map from room key → room_type, used by patch_newhaven_room_types()
 _ROOM_TYPES = {
     "Village Center of Newhaven": "center",
@@ -104,6 +128,7 @@ _ROOM_TYPES = {
     "Arena Entrance":             "dungeon",
     "The Arena Floor":            "dungeon",
     "Bandit Hideout":             "dungeon",
+    "First Newhaven Bank":        "bank",
 }
 
 # Rooms that are considered outdoors (for foraging / hp_regen_outdoor)
@@ -347,13 +372,25 @@ def build_newhaven():
     bandit_hideout.db.room_type = "dungeon"
     bandit_hideout.db.recent_visitors = []
 
+    bank = _room(
+        "First Newhaven Bank",
+        desc=(
+            "A solid stone building with iron-banded walls and a heavy vault door "
+            "visible behind the counter. Teller Oswyn stands at a polished wooden "
+            "window, ready to accept deposits and handle withdrawals."
+        ),
+    )
+    bank.db.room_type = "bank"
+    bank.db.recent_visitors = []
+
     # ── Exits ──────────────────────────────────────────────────────────────────
 
-    _link(center,       north_road,       "north", "south")
-    _link(center,       south_road,       "south", "north")
-    _link(center,       spell_shop,       "east",  "west")
-    _link(center,       general_store,    "west",  "east")
-    _link(center,       arena_entrance,   "down",  "up")
+    _link(center,       north_road,       "north",     "south")
+    _link(center,       south_road,       "south",     "north")
+    _link(center,       spell_shop,       "east",      "west")
+    _link(center,       general_store,    "west",      "east")
+    _link(center,       arena_entrance,   "down",      "up")
+    _link(center,       bank,             "northwest", "southeast")
 
     _link(north_road,   training_grounds, "north", "south")
     _link(north_road,   weapon_shop,      "west",  "east")
@@ -382,7 +419,7 @@ def build_newhaven():
     # Return exit from hideout (unlocked from inside)
     _exit("west", bandit_hideout, south_road)
 
-    # ── NPC stubs (non-hostile, no economy yet) ────────────────────────────────
+    # ── NPCs ───────────────────────────────────────────────────────────────────
 
     aldric = _npc(
         "Master Aldric",
@@ -395,43 +432,85 @@ def build_newhaven():
     aldric.tags.add("trainer", category="npc_role")
     aldric.tags.add("skill_trainer", category="npc_role")
 
-    _npc(
+    _merchant(
         "Harden",
         weapon_shop,
         "A broad-shouldered man with forge-scarred forearms and a "
         "measuring eye. He knows every blade in the shop by weight.",
+        shop_type="weapons",
+        shop_inventory=[
+            {"prototype_key": "RUSTY_DAGGER", "stock": -1, "price_override": None},
+            {"prototype_key": "SHORT_SWORD",  "stock": -1, "price_override": None},
+            {"prototype_key": "HAND_AXE",     "stock": -1, "price_override": None},
+            {"prototype_key": "BROADSWORD",   "stock": -1, "price_override": None},
+            {"prototype_key": "IRON_STAFF",   "stock": -1, "price_override": None},
+            {"prototype_key": "LONGBOW",      "stock": -1, "price_override": None},
+        ],
         aliases=["harden", "weaponsmith"],
     )
 
-    _npc(
+    _merchant(
         "Fletcher",
         armor_shop,
         "A wiry, methodical woman with ink-stained fingers and a "
         "habit of humming while she works.",
+        shop_type="armor",
+        shop_inventory=[
+            {"prototype_key": "PLAIN_ROBES",     "stock": -1, "price_override": None},
+            {"prototype_key": "CLOTH_CAP",        "stock": -1, "price_override": None},
+            {"prototype_key": "LEATHER_CAP",      "stock": -1, "price_override": None},
+            {"prototype_key": "LEATHER_JERKIN",   "stock": -1, "price_override": None},
+            {"prototype_key": "LEATHER_BRACERS",  "stock": -1, "price_override": None},
+            {"prototype_key": "LEATHER_GLOVES",   "stock": -1, "price_override": None},
+            {"prototype_key": "LEATHER_BELT",     "stock": -1, "price_override": None},
+            {"prototype_key": "LEATHER_LEGGINGS", "stock": -1, "price_override": None},
+            {"prototype_key": "LEATHER_BOOTS",    "stock": -1, "price_override": None},
+            {"prototype_key": "CHAIN_COIF",       "stock": -1, "price_override": None},
+            {"prototype_key": "CHAIN_MAIL",       "stock": -1, "price_override": None},
+            {"prototype_key": "CHAIN_VAMBRACES",  "stock": -1, "price_override": None},
+            {"prototype_key": "CHAIN_LEGGINGS",   "stock": -1, "price_override": None},
+            {"prototype_key": "IRON_BOOTS",       "stock": -1, "price_override": None},
+            {"prototype_key": "IRON_HELM",        "stock": -1, "price_override": None},
+            {"prototype_key": "PLATE_MAIL",       "stock": -1, "price_override": None},
+            {"prototype_key": "IRON_VAMBRACES",   "stock": -1, "price_override": None},
+            {"prototype_key": "IRON_GAUNTLETS",   "stock": -1, "price_override": None},
+            {"prototype_key": "PLATE_LEGGINGS",   "stock": -1, "price_override": None},
+            {"prototype_key": "IRON_SABATONS",    "stock": -1, "price_override": None},
+        ],
         aliases=["fletcher", "armorer"],
     )
 
-    _npc(
+    _merchant(
         "Mira",
         spell_shop,
         "A slight woman in grey robes, her eyes carrying the calm "
         "focus of someone who reads very small text in very dim light.",
+        shop_type="magic",
+        shop_inventory=[],   # spell scrolls: future work
         aliases=["mira", "spellseller"],
     )
 
-    _npc(
+    _merchant(
         "Old Bern",
         general_store,
         "A heavyset man who looks as permanent as the store itself. "
         "He has sold goods here since before the current signpost.",
+        shop_type="general",
+        shop_inventory=[
+            {"prototype_key": "HEALING_POTION", "stock": -1, "price_override": None},
+        ],
         aliases=["bern", "storekeeper"],
     )
 
-    _npc(
+    _merchant(
         "Sister Elara",
         healer,
         "A serene woman in simple robes who tends her herbs with "
         "quiet efficiency. She will patch the wounded without judgment.",
+        shop_type="healer",
+        shop_inventory=[
+            {"prototype_key": "HEALING_POTION", "stock": -1, "price_override": None},
+        ],
         aliases=["elara", "healer_npc"],
     )
 
@@ -443,6 +522,17 @@ def build_newhaven():
         aliases=["boatman"],
     )
 
+    # ── Bank NPC ───────────────────────────────────────────────────────────────
+
+    oswyn = _npc(
+        "Teller Oswyn",
+        bank,
+        "A neatly dressed man with round spectacles and ink-stained cuffs. "
+        "He manages the vault with practiced efficiency.",
+        aliases=["oswyn", "teller"],
+    )
+    oswyn.tags.add("bank", category="npc_role")
+
     # ── Arena monsters ─────────────────────────────────────────────────────────
 
     for _ in range(3):
@@ -452,3 +542,116 @@ def build_newhaven():
             rats[0].location = arena_floor
 
     return center
+
+
+# ── Patch functions for existing servers ──────────────────────────────────────
+
+_WEAPON_SHOP_INVENTORY = [
+    {"prototype_key": "RUSTY_DAGGER", "stock": -1, "price_override": None},
+    {"prototype_key": "SHORT_SWORD",  "stock": -1, "price_override": None},
+    {"prototype_key": "HAND_AXE",     "stock": -1, "price_override": None},
+    {"prototype_key": "BROADSWORD",   "stock": -1, "price_override": None},
+    {"prototype_key": "IRON_STAFF",   "stock": -1, "price_override": None},
+    {"prototype_key": "LONGBOW",      "stock": -1, "price_override": None},
+]
+
+_ARMOR_SHOP_INVENTORY = [
+    {"prototype_key": "PLAIN_ROBES",     "stock": -1, "price_override": None},
+    {"prototype_key": "CLOTH_CAP",        "stock": -1, "price_override": None},
+    {"prototype_key": "LEATHER_CAP",      "stock": -1, "price_override": None},
+    {"prototype_key": "LEATHER_JERKIN",   "stock": -1, "price_override": None},
+    {"prototype_key": "LEATHER_BRACERS",  "stock": -1, "price_override": None},
+    {"prototype_key": "LEATHER_GLOVES",   "stock": -1, "price_override": None},
+    {"prototype_key": "LEATHER_BELT",     "stock": -1, "price_override": None},
+    {"prototype_key": "LEATHER_LEGGINGS", "stock": -1, "price_override": None},
+    {"prototype_key": "LEATHER_BOOTS",    "stock": -1, "price_override": None},
+    {"prototype_key": "CHAIN_COIF",       "stock": -1, "price_override": None},
+    {"prototype_key": "CHAIN_MAIL",       "stock": -1, "price_override": None},
+    {"prototype_key": "CHAIN_VAMBRACES",  "stock": -1, "price_override": None},
+    {"prototype_key": "CHAIN_LEGGINGS",   "stock": -1, "price_override": None},
+    {"prototype_key": "IRON_BOOTS",       "stock": -1, "price_override": None},
+    {"prototype_key": "IRON_HELM",        "stock": -1, "price_override": None},
+    {"prototype_key": "PLATE_MAIL",       "stock": -1, "price_override": None},
+    {"prototype_key": "IRON_VAMBRACES",   "stock": -1, "price_override": None},
+    {"prototype_key": "IRON_GAUNTLETS",   "stock": -1, "price_override": None},
+    {"prototype_key": "PLATE_LEGGINGS",   "stock": -1, "price_override": None},
+    {"prototype_key": "IRON_SABATONS",    "stock": -1, "price_override": None},
+]
+
+_HEALER_INVENTORY = [
+    {"prototype_key": "HEALING_POTION", "stock": -1, "price_override": None},
+]
+
+
+def patch_newhaven_merchants():
+    """
+    Wire existing Newhaven shop NPCs to the Merchant typeclass with shop inventories.
+    For new builds this is redundant (build_newhaven uses _merchant()); for existing
+    servers this upgrades Harden, Fletcher, Mira, Old Bern, and Sister Elara in place.
+
+    Safe to call every server start.
+    """
+    from typeclasses.merchants import Merchant
+
+    _configs = {
+        "Harden":       {"shop_type": "weapons", "inventory": _WEAPON_SHOP_INVENTORY},
+        "Fletcher":     {"shop_type": "armor",   "inventory": _ARMOR_SHOP_INVENTORY},
+        "Mira":         {"shop_type": "magic",   "inventory": []},
+        "Old Bern":     {"shop_type": "general", "inventory": _HEALER_INVENTORY},
+        "Sister Elara": {"shop_type": "healer",  "inventory": _HEALER_INVENTORY},
+    }
+
+    for npc_name, cfg in _configs.items():
+        matches = evennia.search_object(npc_name)
+        for npc in matches:
+            # Only touch Newhaven NPCs
+            if not (npc.location and getattr(npc.location.db, "zone", None) == "newhaven"):
+                continue
+            if not isinstance(npc, Merchant):
+                npc.swap_typeclass(
+                    "typeclasses.merchants.Merchant",
+                    clean_attributes=False,
+                    run_start_hooks=False,
+                    no_default=True,
+                )
+            npc.db.shop_type      = cfg["shop_type"]
+            npc.db.shop_inventory = cfg["inventory"]
+            npc.db.no_negotiate   = False
+            npc.db.buys_items     = True
+
+
+def patch_newhaven_bank():
+    """
+    Add the First Newhaven Bank room and Teller Oswyn to existing servers.
+    Connects northwest from Village Center. Safe to call every server start
+    (no-op if the bank already exists).
+    """
+    if evennia.search_object("First Newhaven Bank"):
+        return  # already exists
+
+    center_matches = evennia.search_object("Village Center of Newhaven")
+    if not center_matches:
+        return  # Newhaven not built yet; build_newhaven will handle it
+    center = center_matches[0]
+
+    bank = _room(
+        "First Newhaven Bank",
+        desc=(
+            "A solid stone building with iron-banded walls and a heavy vault door "
+            "visible behind the counter. Teller Oswyn stands at a polished wooden "
+            "window, ready to accept deposits and handle withdrawals."
+        ),
+    )
+    bank.db.room_type = "bank"
+    bank.db.recent_visitors = []
+
+    _link(center, bank, "northwest", "southeast")
+
+    oswyn = _npc(
+        "Teller Oswyn",
+        bank,
+        "A neatly dressed man with round spectacles and ink-stained cuffs. "
+        "He manages the vault with practiced efficiency.",
+        aliases=["oswyn", "teller"],
+    )
+    oswyn.tags.add("bank", category="npc_role")

@@ -39,6 +39,10 @@ from .skills import (
     CmdTurn, CmdIntimidate, CmdForage, CmdIdentify, CmdSearch,
     CmdDisarm, CmdSetTrap, CmdBattleCry, CmdForm,
 )
+from .economy import (
+    CmdGold, CmdBalance, CmdDeposit, CmdWithdraw,
+    CmdList, CmdBuy, CmdSell, CmdDrink,
+)
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -90,6 +94,14 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdSetTrap)
         self.add(CmdBattleCry)
         self.add(CmdForm)
+        self.add(CmdGold)
+        self.add(CmdBalance)
+        self.add(CmdDeposit)
+        self.add(CmdWithdraw)
+        self.add(CmdList)
+        self.add(CmdBuy)
+        self.add(CmdSell)
+        self.add(CmdDrink)
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):

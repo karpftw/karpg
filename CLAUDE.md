@@ -44,6 +44,10 @@ Strict separation of concerns — keep Evennia imports out of `world/`:
 | Engine | `world/stealth.py` | Stealth math: score, hide/noise/detection checks |
 | Engine | `world/skills.py` | Skill registry + all skill math (perception, combat mastery, dodge, parry, etc.) |
 | Commands | `commands/skills.py` | `skills`, `learn`, `pick`, `steal`, `track`, `bandage`, `turn`, `intimidate`, `forage`, `identify`, `search`, `disarm`, `settrap`, `battlecry`, `form` |
+| Commands | `commands/economy.py` | `gold`, `balance`, `deposit`, `withdraw`, `list`, `buy`, `sell`, `drink` |
+| Engine | `world/economy.py` | Pricing math, gold weight, format helpers |
+| Typeclass | `typeclasses/merchants.py` | Merchant NPC typeclass with shop inventory |
+| Script | `typeclasses/interest_script.py` | Global daily bank interest (1%/day, cap 50k GP) |
 | Script | `typeclasses/combat_script.py` | 4-second tick manager + combatant state |
 | Script | `typeclasses/resting_script.py` | Out-of-combat HP regen tick |
 | Typeclasses | `typeclasses/characters.py` | Player character typeclass |
@@ -346,13 +350,18 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
   - Proficiency levels: Novice → Master (auto-advance on use count)
   - `[FORM]` tag in status prompt when Mystic has active stance
 
+- Economy system: gold (db.gold, db.bank_balance), gold encumbrance (0.01 lbs/GP),
+  50 GP starting gold at chargen, daily bank interest script (1%/day, cap 50k GP),
+  Merchant typeclass with shop inventory, buy/sell/deposit/withdraw/balance/drink commands,
+  First Newhaven Bank room + Teller Oswyn, all 5 shop NPCs wired (Harden, Fletcher,
+  Mira, Old Bern, Sister Elara), HEALING_POTION prototype (heals 20 HP, 25 GP base)
+
 **Not yet implemented (rough priority order):**
 1. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
 2. Loot drops (loot_table exists, drop logic not written)
-4. Ranged combat (weapons have attack_range, no mechanic)
-5. CHM → merchant pricing
-6. Merchant NPCs + shop commands (stubs exist in Newhaven, no buy/sell logic)
-7. Trainer NPCs wired into Newhaven (Master Aldric stub exists; TRAIN logic done but NPC not tagged)
-8. Bard class / Bard spell school
-9. Alignment system (Priest good/evil variants)
-10. Additional races (7 more to reach MajorMUD's 13)
+3. Ranged combat (weapons have attack_range, no mechanic)
+4. CHM direct merchant pricing (negotiate_discount() used by buy_price(); CHM-only effect not yet added)
+5. Trainer NPCs wired into Newhaven (Master Aldric stub exists; TRAIN logic done but NPC not tagged)
+6. Bard class / Bard spell school
+7. Alignment system (Priest good/evil variants)
+8. Additional races (7 more to reach MajorMUD's 13)
