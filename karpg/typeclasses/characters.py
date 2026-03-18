@@ -13,6 +13,7 @@ from evennia.utils.utils import display_len
 from .objects import ObjectParent
 from world.combat_engine import hp_colour
 from world.stats import recalc_stats, get_carry_capacity, get_carried_weight
+from world.xp_tables import xp_in_bracket, xp_to_next_level
 
 
 class Character(ObjectParent, DefaultCharacter):
@@ -164,7 +165,16 @@ class Character(ObjectParent, DefaultCharacter):
         col = hp_colour(hp, hp_max)
         rest_tag = "|c[REST]|n " if self.db.is_resting else ""
         hp_part = f"[|wHP|n: {col}{hp}/{hp_max}|n]"
-        lv_part = f"[|wLv {level}|n | |yXP: {xp}|n]>"
+
+        char_class = self.db.char_class or "warrior"
+        race = self.db.race or "human"
+        if level >= 75:
+            xp_display = "MAX"
+        else:
+            xp_bracket = xp_in_bracket(xp, level, char_class, race)
+            xp_next = xp_to_next_level(level, char_class, race)
+            xp_display = f"{xp_bracket:,}/{xp_next:,}"
+        lv_part = f"[|wLv {level}|n | |yXP: {xp_display}|n]>"
 
         max_kai  = self.db.max_kai or 0
         max_mana = self.db.max_mana or 0

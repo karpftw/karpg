@@ -298,7 +298,7 @@ def build_newhaven():
 
     # ── NPC stubs (non-hostile, no economy yet) ────────────────────────────────
 
-    _npc(
+    aldric = _npc(
         "Master Aldric",
         training_grounds,
         "A veteran fighter with close-cropped grey hair and calm eyes. "
@@ -306,6 +306,7 @@ def build_newhaven():
         "train those who have earned their next level.",
         aliases=["aldric", "trainer"],
     )
+    aldric.tags.add("trainer", category="npc_role")
 
     _npc(
         "Harden",
