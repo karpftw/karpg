@@ -38,6 +38,8 @@ Strict separation of concerns — keep Evennia imports out of `world/`:
 | Commands | `commands/wearing.py` | `wear`, `remove` |
 | Commands | `commands/resting.py` | `rest`, `stand` |
 | Commands | `commands/map.py` | `map` |
+| Commands | `commands/xp.py` | `xp` — windowed XP table |
+| Commands | `commands/train.py` | `train` — level-up at trainer NPC |
 | Script | `typeclasses/combat_script.py` | 4-second tick manager + combatant state |
 | Script | `typeclasses/resting_script.py` | Out-of-combat HP regen tick |
 | Typeclasses | `typeclasses/characters.py` | Player character typeclass |
@@ -240,7 +242,11 @@ Implemented. `db.magic_resistance` and `db.base_magic_resistance` on all charact
 - **Lives**: Characters start with 9 lives; gain 1 per level (death costs a life)
 
 Key `db` attributes: `xp`, `cp` (unspent character points), `lives` (default 9).
-`xp_needed` and TRAIN command not yet implemented.
+
+`world/xp_tables.py`: `xp_for_level()`, `xp_to_next_level()`, `xp_in_bracket()`, `cp_for_level()`.
+TRAIN command (`commands/train.py`): checks trainer NPC in room, validates XP threshold, increments
+level, awards CP, recalculates stats. `xp` command (`commands/xp.py`): 15-row windowed table
+anchored to current level with XP required, bracket size, and CP columns.
 
 ---
 
@@ -300,18 +306,20 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
 - Login system: multi-step prompted `connect`/`create`, telnet echo suppression during
   password entry, password confirmation on account creation, styled ASCII connection screen
   (`commands/unloggedin.py`). Webclient password masking deferred (needs JS plugin).
+- Leveling: `world/xp_tables.py` (XP curves, class/race multipliers, CP-per-level table),
+  TRAIN command (trainer NPC presence check, XP threshold, level-up stat recalc, CP award),
+  `xp` command (15-row windowed XP table with bracket progress footer)
 
 **Not yet implemented (rough priority order):**
 1. Stealth system (prerequisite for backstab enforcement)
 2. INT-based crit chance (currently flat 5%)
-3. Leveling: TRAIN command, CP-per-level award, level-up stat recalc
-4. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
-5. Skills system (stealth, lockpick, traps, tracking, perception) — `world/skills.py`
-6. Loot drops (loot_table exists, drop logic not written)
-7. Ranged combat (weapons have attack_range, no mechanic)
-8. CHM → merchant pricing
-9. Merchant NPCs + shop commands (stubs exist in Newhaven, no buy/sell logic)
-10. Trainer NPCs + TRAIN command (Master Aldric stub exists, no TRAIN logic)
-11. Bard class / Bard spell school
-12. Alignment system (Priest good/evil variants)
-13. Additional races (7 more to reach MajorMUD's 13)
+3. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
+4. Skills system (stealth, lockpick, traps, tracking, perception) — `world/skills.py`
+5. Loot drops (loot_table exists, drop logic not written)
+6. Ranged combat (weapons have attack_range, no mechanic)
+7. CHM → merchant pricing
+8. Merchant NPCs + shop commands (stubs exist in Newhaven, no buy/sell logic)
+9. Trainer NPCs wired into Newhaven (Master Aldric stub exists; TRAIN logic done but NPC not tagged)
+10. Bard class / Bard spell school
+11. Alignment system (Priest good/evil variants)
+12. Additional races (7 more to reach MajorMUD's 13)

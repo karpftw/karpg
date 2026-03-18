@@ -32,6 +32,7 @@ from .resting import CmdRest, CmdStand
 from .chargen import CmdChargen, CmdSetClass, CmdSetRace
 from .wearing import CmdWear, CmdRemove
 from .train import CmdTrain
+from .xp import CmdXP
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -66,6 +67,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdWear)
         self.add(CmdRemove)
         self.add(CmdTrain)
+        self.add(CmdXP)
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):
