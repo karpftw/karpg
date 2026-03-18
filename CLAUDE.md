@@ -34,7 +34,7 @@ Strict separation of concerns — keep Evennia imports out of `world/`:
 |---|---|---|
 | Commands | `commands/combat.py` | Player-facing combat commands |
 | Commands | `commands/chargen.py` | `chargen`, `setclass`, `setrace` |
-| Commands | `commands/equipment.py` | `wield`, `unwield`, `equipment` |
+| Commands | `commands/equipment.py` | `wield`, `unwield`, `equipment`, `inventory` / `i` |
 | Commands | `commands/wearing.py` | `wear`, `remove` |
 | Commands | `commands/resting.py` | `rest`, `stand` |
 | Commands | `commands/map.py` | `map` |
@@ -363,6 +363,11 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
   callback). Animals drop nothing; undead no gold; humanoids gold + rare items. 5-min gold
   decay / 10-min item decay. Boss override via `db.loot_table` list. Procedural fallback by
   `faction_type` + `level` for unknown NPC types.
+
+- Inventory command: `inventory` / `inv` / `i` in `commands/equipment.py`. Shows pack
+  contents (carried but not equipped) with `[W]`/`[A]`/`[!]`/`[?]` type tags, damage dice /
+  AC / heal stats, weight and value columns, gold carried, and a color-coded 20-char carry
+  bar (green < 75%, yellow < 100%, red = over cap). Overrides Evennia's default inventory.
 
 **Not yet implemented (rough priority order):**
 1. HLT milestone bonus HP (at HLT 12/15/18 on our scale)

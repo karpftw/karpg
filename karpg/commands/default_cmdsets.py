@@ -16,7 +16,7 @@ own cmdsets by inheriting from them or directly from `evennia.CmdSet`.
 from evennia import default_cmds
 
 from .unloggedin import CmdConnect, CmdCreate
-from .equipment import CmdEquipment, CmdUnwield, CmdWield
+from .equipment import CmdEquipment, CmdUnwield, CmdWield, CmdInventory
 from .combat import (
     CmdAttack,
     CmdBash,
@@ -60,6 +60,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdWield)
         self.add(CmdUnwield)
         self.add(CmdEquipment)
+        self.add(CmdInventory)
         self.add(CmdAttack)
         self.add(CmdBash)
         self.add(CmdSmash)

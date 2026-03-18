@@ -287,3 +287,118 @@ class CmdEquipment(Command):
 
         lines.append(hrule)
         caller.msg("\n".join(lines))
+
+
+# ── inventory ─────────────────────────────────────────────────────────────────
+
+class CmdInventory(Command):
+    """
+    View items in your pack (carried but not equipped), gold, and carry weight.
+
+    Usage:
+      inventory
+      inv
+      i
+    """
+
+    key = "inventory"
+    aliases = ["inv", "i"]
+    locks = "cmd:all()"
+    help_category = "General"
+
+    def func(self):
+        caller = self.caller
+        W = 56
+
+        def line(content):
+            return f"|x|||n{_pad(content, W)}|x|||n"
+
+        hrule   = _make_hrule(W)
+        divider = _make_divider(W)
+
+        # Build set of equipped objects to exclude
+        wielded = _get_wielded(caller)
+        equipped = set(v for v in wielded.values() if v)
+        armor_slots = caller.db.armor_slots or {}
+        equipped.update(v for v in armor_slots.values() if v)
+
+        # Pack = everything in inventory minus equipped
+        pack = [obj for obj in caller.contents if obj not in equipped]
+
+        def item_line(obj):
+            if inherits_from(obj, "typeclasses.weapons.Weapon"):
+                tag   = "|c[W]|n"
+                dice  = obj.db.damage_dice or "—"
+                dtype = obj.db.damage_type or "—"
+                col   = _dmg_colour(dtype)
+                stats = f"{col}{dice} {dtype}|n"
+                wt    = obj.db.weight or 0
+                val   = obj.db.value or 0
+                name  = f"|Y{obj.get_display_name(caller)}|n"
+            elif inherits_from(obj, "typeclasses.armor.Armor"):
+                tag   = "|y[A]|n"
+                slot  = obj.db.slot or "?"
+                ac    = obj.db.ac_bonus or 0
+                atype = obj.db.armor_type or ""
+                stats = f"|w{slot}|n |g+{ac}AC|n {atype}"
+                wt    = obj.db.weight or 0
+                val   = obj.db.value or 0
+                name  = f"|w{obj.get_display_name(caller)}|n"
+            elif getattr(obj.db, "item_type", None) == "consumable":
+                tag   = "|m[!]|n"
+                heal  = obj.db.heal_amount
+                stats = f"|Mheals {heal} hp|n" if heal else "|mconsumable|n"
+                wt    = obj.db.weight or 0
+                val   = obj.db.value or 0
+                name  = f"|m{obj.get_display_name(caller)}|n"
+            else:
+                tag   = "|x[?]|n"
+                stats = ""
+                wt    = getattr(obj.db, "weight", 0) or 0
+                val   = getattr(obj.db, "value",  0) or 0
+                name  = obj.get_display_name(caller)
+
+            right   = f"{wt:.1f} lb  {val} gp"
+            content = f" {tag} {_pad(name, 24)} {_pad(stats, 20)} {right}"
+            return line(content)
+
+        lines = []
+        lines.append(hrule)
+        lines.append(line(f"  |m*|b~|n |M-- |W INVENTORY |M--|n |b~|m*|n"))
+        lines.append(hrule)
+
+        if pack:
+            for obj in pack:
+                lines.append(item_line(obj))
+        else:
+            lines.append(line("  |x(nothing in pack)|n"))
+
+        lines.append(divider)
+
+        # Gold row
+        gold     = caller.db.gold or 0
+        gold_wt  = gold * 0.01
+        lines.append(line(f"  Gold carried:  |Y{gold} gp|n  ({gold_wt:.1f} lbs)"))
+
+        lines.append(divider)
+
+        # Carry bar
+        carried = caller.db.carrying_weight or get_carried_weight(caller)
+        cap     = get_carry_capacity(caller)
+        pct     = min(1.0, carried / cap) if cap else 0
+        filled  = int(pct * 20)
+        if pct < 0.75:
+            bar_col = "|g"
+        elif pct < 1.0:
+            bar_col = "|y"
+        else:
+            bar_col = "|r"
+        bar = bar_col + "█" * filled + "|x" + "░" * (20 - filled) + "|n"
+        pct_str = f"{int(pct * 100)}%"
+        lines.append(line(
+            f"  Carry: {bar_col}{carried:.1f}|n / |w{cap}|n lbs"
+            f"    [{bar}]  {pct_str}"
+        ))
+
+        lines.append(hrule)
+        caller.msg("\n".join(lines))
