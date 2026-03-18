@@ -15,6 +15,7 @@ own cmdsets by inheriting from them or directly from `evennia.CmdSet`.
 
 from evennia import default_cmds
 
+from .unloggedin import CmdConnect, CmdCreate
 from .equipment import CmdEquipment, CmdUnwield, CmdWield
 from .combat import (
     CmdAttack,
@@ -91,6 +92,8 @@ class UnloggedinCmdSet(default_cmds.UnloggedinCmdSet):
     def at_cmdset_creation(self):
         """Populates the cmdset."""
         super().at_cmdset_creation()
+        self.add(CmdConnect())
+        self.add(CmdCreate())
 
 
 class SessionCmdSet(default_cmds.SessionCmdSet):

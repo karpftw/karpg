@@ -297,6 +297,9 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
 - 5 NPC prototypes: giant rat, goblin, skeleton, bandit, orc
 - 6 weapon prototypes + armor prototypes
 - Newhaven starting area: 14 rooms, 7 NPC stubs, arena with giant rats
+- Login system: multi-step prompted `connect`/`create`, telnet echo suppression during
+  password entry, password confirmation on account creation, styled ASCII connection screen
+  (`commands/unloggedin.py`). Webclient password masking deferred (needs JS plugin).
 
 **Not yet implemented (rough priority order):**
 1. Stealth system (prerequisite for backstab enforcement)
