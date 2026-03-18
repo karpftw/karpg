@@ -105,7 +105,7 @@ Mapping: our 10 ≈ their 50 (baseline); our 20 ≈ their 100 (max).
 
 | Stat | Current impl | MajorMUD target | Status |
 |---|---|---|---|
-| INT → crit chance | Flat 5% | +1% crit per 10 INT (INT-driven) | Deviation — fix when classes land |
+| INT → crit chance | INT-driven: 1% per INT pt, 10–20% typical, cap 25% | Done |
 | AGI → AC | `AC + AGI/10` | +2.5 AC per 10 AGI | Close; refine later |
 | STR → encumbrance | Carry cap enforced; accuracy/damage penalty active | 480 carry units per 10 STR | Done |
 | HLT → HP milestones | Not implemented | MajorMUD: bonus HP at HLT 60/75/90; our scale: ~12/15/18 | Future work |
@@ -314,16 +314,16 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
 - Stealth system: `hide` command (Thief/Elf/Halfling), AGI-based hide/noise/detection checks,
   room visibility filtering, NPC target exclusion, backstab requires stealth, reveal on
   attack/cast, `[HIDDEN]` prompt tag (`world/stealth.py`, `commands/stealth.py`)
+- INT-based crit chance: `get_crit_chance()` in `world/stats.py`, 1% per INT point (cap 25%)
 
 **Not yet implemented (rough priority order):**
-1. INT-based crit chance (currently flat 5%)
-2. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
-3. Skills system (lockpick, traps, tracking, perception) — `world/skills.py`
-4. Loot drops (loot_table exists, drop logic not written)
-5. Ranged combat (weapons have attack_range, no mechanic)
-6. CHM → merchant pricing
-7. Merchant NPCs + shop commands (stubs exist in Newhaven, no buy/sell logic)
-8. Trainer NPCs wired into Newhaven (Master Aldric stub exists; TRAIN logic done but NPC not tagged)
-9. Bard class / Bard spell school
-10. Alignment system (Priest good/evil variants)
-11. Additional races (7 more to reach MajorMUD's 13)
+1. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
+2. Skills system (lockpick, traps, tracking, perception) — `world/skills.py`
+3. Loot drops (loot_table exists, drop logic not written)
+4. Ranged combat (weapons have attack_range, no mechanic)
+5. CHM → merchant pricing
+6. Merchant NPCs + shop commands (stubs exist in Newhaven, no buy/sell logic)
+7. Trainer NPCs wired into Newhaven (Master Aldric stub exists; TRAIN logic done but NPC not tagged)
+8. Bard class / Bard spell school
+9. Alignment system (Priest good/evil variants)
+10. Additional races (7 more to reach MajorMUD's 13)

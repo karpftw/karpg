@@ -133,6 +133,14 @@ def get_hp_regen(combatant):
     return hlt // 5 + 1
 
 
+def get_crit_chance(combatant) -> float:
+    """INT-based crit chance: 1% per INT point, capped at 25%.
+    Baseline INT 10 → 10%, max INT 20 → 20%.
+    """
+    int_ = _stat(combatant, "int")
+    return min(0.25, int_ * 0.01)
+
+
 def apply_formation_modifier(accuracy, defense, rank):
     """
     Apply front/mid/back formation modifiers.

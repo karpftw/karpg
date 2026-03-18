@@ -181,7 +181,7 @@ def resolve_attack(attacker, target, mode="normal"):
 
     Applies damage directly to target.db.hp. Returns AttackResult.
     """
-    from .stats import get_accuracy, get_defense, apply_formation_modifier
+    from .stats import get_accuracy, get_defense, apply_formation_modifier, get_crit_chance
     from .conditions import get_combat_modifiers
 
     result = AttackResult()
@@ -222,8 +222,9 @@ def resolve_attack(attacker, target, mode="normal"):
         result.target_max_hp = target.db.hp_max or 1
         return result
 
-    # Critical: top 5% of successful hits
-    result.critical = (roll >= (1.0 - 0.05))
+    # Critical: INT-driven — baseline INT 10 → 10%, capped 25%
+    crit_chance = get_crit_chance(attacker)
+    result.critical = (roll >= (1.0 - crit_chance))
 
     # Weapon base damage
     wielded = getattr(attacker.db, "wielded", None) or {}
