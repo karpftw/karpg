@@ -148,6 +148,9 @@ class AttackResult:
     attacker_max_hp: int = 1
     target_hp: int = 0
     target_max_hp: int = 1
+    dodged: bool = False
+    parried: bool = False
+    blocked: bool = False
 
 
 @dataclass
@@ -222,6 +225,29 @@ def resolve_attack(attacker, target, mode="normal"):
         result.target_max_hp = target.db.hp_max or 1
         return result
 
+    # Passive defenses: shield block first, then dodge
+    from .skills import shield_block_check, dodge_check, skill_level, tick_skill_use
+    wielded_t = getattr(target.db, "wielded", None) or {}
+    off_hand = wielded_t.get("off_hand")
+    off_is_shield = off_hand and getattr(off_hand.db, "item_type", "") == "shield"
+    if off_is_shield and skill_level(target, "shield_block") > 0:
+        if shield_block_check(target):
+            result.hit = False
+            result.blocked = True
+            tick_skill_use(target, "shield_block")
+    if result.hit and skill_level(target, "dodge") > 0:
+        if dodge_check(target):
+            result.hit = False
+            result.dodged = True
+            tick_skill_use(target, "dodge")
+
+    if not result.hit:
+        result.attacker_hp = attacker.db.hp or 0
+        result.attacker_max_hp = attacker.db.hp_max or 1
+        result.target_hp = target.db.hp or 0
+        result.target_max_hp = target.db.hp_max or 1
+        return result
+
     # Critical: INT-driven — baseline INT 10 → 10%, capped 25%
     crit_chance = get_crit_chance(attacker)
     result.critical = (roll >= (1.0 - crit_chance))
@@ -237,8 +263,24 @@ def resolve_attack(attacker, target, mode="normal"):
             _, weapon_sides = parse_dice(weapon_notation)
         except ValueError:
             pass
+    # Unarmed: check Mystic unarmed form
+    if not weapon:
+        from .skills import unarmed_damage_dice, skill_level as _sl
+        if _sl(attacker, "unarmed_forms") > 0:
+            weapon_notation = unarmed_damage_dice(attacker)
+            try:
+                _, weapon_sides = parse_dice(weapon_notation)
+            except ValueError:
+                pass
 
     base_dmg, _ = roll_notation(weapon_notation)
+
+    # Combat mastery damage bonus
+    from .skills import combat_mastery_bonus
+    if skill_level(attacker, "combat_mastery") > 0:
+        _, dmg_bonus = combat_mastery_bonus(attacker)
+        base_dmg = max(1, base_dmg + dmg_bonus)
+
     result.base_damage = base_dmg
 
     dr = _get_dr(target)
@@ -259,6 +301,14 @@ def resolve_attack(attacker, target, mode="normal"):
         # normal/backstab: DR after multiplier
         result.multiplied_damage = int(base_dmg * multiplier)
         result.final_damage = max(0, result.multiplied_damage - dr)
+
+    # Parry: halve damage for normal-mode attacks
+    from .skills import parry_check
+    if result.hit and skill_level(target, "parry") > 0 and mode == "normal":
+        if parry_check(target):
+            result.final_damage = max(1, result.final_damage // 2)
+            result.parried = True
+            tick_skill_use(target, "parry")
 
     # Apply damage
     target.db.hp = max(0, (target.db.hp or 0) - result.final_damage)

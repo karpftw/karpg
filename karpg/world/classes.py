@@ -30,7 +30,10 @@ CLASS_REGISTRY = {
         "weapon_types": _ANY,      # no restriction
         "two_handed_allowed": True,
         "combat_rating": 4,
-        "abilities": ["combat_mastery"],
+        "abilities": [
+            "combat_mastery", "parry", "shield_block", "dual_wield",
+            "battle_cry", "disarm", "intimidate", "first_aid",
+        ],
         "armor_types": _ANY,       # no restriction
     },
     "mage": {
@@ -42,7 +45,7 @@ CLASS_REGISTRY = {
         "weapon_types": ["staff", "dagger"],
         "two_handed_allowed": True,
         "combat_rating": 1,
-        "abilities": [],
+        "abilities": ["identify"],
         "armor_types": ["cloth"],
     },
     "thief": {
@@ -54,7 +57,10 @@ CLASS_REGISTRY = {
         "weapon_types": ["dagger", "sword", "blade", "axe"],
         "two_handed_allowed": False,
         "combat_rating": 2,
-        "abilities": ["backstab", "stealth", "lockpick"],
+        "abilities": [
+            "backstab", "stealth", "lockpick", "dodge",
+            "dual_wield", "thievery", "traps",
+        ],
         "armor_types": ["cloth", "leather"],
     },
     "druid": {
@@ -66,7 +72,9 @@ CLASS_REGISTRY = {
         "weapon_types": ["blunt", "staff", "sickle"],
         "two_handed_allowed": True,
         "combat_rating": 2,
-        "abilities": ["hp_regen_outdoor"],
+        "abilities": [
+            "hp_regen_outdoor", "track", "first_aid", "forage", "identify",
+        ],
         "armor_types": ["cloth", "leather", "medium"],
     },
     "priest": {
@@ -78,7 +86,7 @@ CLASS_REGISTRY = {
         "weapon_types": ["blunt", "staff"],
         "two_handed_allowed": True,
         "combat_rating": 2,
-        "abilities": ["turn_undead"],
+        "abilities": ["turn_undead", "first_aid", "shield_block"],
         "armor_types": _ANY,       # no restriction
     },
     "warlock": {
@@ -90,7 +98,7 @@ CLASS_REGISTRY = {
         "weapon_types": _ANY,      # no restriction
         "two_handed_allowed": True,
         "combat_rating": 3,
-        "abilities": [],
+        "abilities": ["dual_wield", "parry", "intimidate"],
         "armor_types": ["cloth", "leather", "medium"],
     },
     "gypsy": {
@@ -102,7 +110,7 @@ CLASS_REGISTRY = {
         "weapon_types": ["dagger", "sword", "blade"],
         "two_handed_allowed": False,
         "combat_rating": 2,
-        "abilities": ["thievery"],
+        "abilities": ["thievery", "dual_wield", "negotiate"],
         "armor_types": ["cloth", "leather"],
     },
     "mystic": {
@@ -115,7 +123,7 @@ CLASS_REGISTRY = {
         "weapon_types": [None, "staff"],
         "two_handed_allowed": True,
         "combat_rating": 3,
-        "abilities": ["unarmed_forms", "kai_energy"],
+        "abilities": ["unarmed_forms", "kai_energy", "dodge"],
         "armor_types": ["cloth"],
     },
 }

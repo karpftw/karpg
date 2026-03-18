@@ -112,6 +112,12 @@ class Character(ObjectParent, DefaultCharacter):
         self.db.xp           = 0
         self.db.lives        = 9   # MajorMUD: start with 9 lives; gain 1 per level
 
+        # Skills
+        self.db.known_skills    = {}
+        self.db.skill_cooldowns = {}
+        self.db.active_form     = None   # Mystic stance: "tiger"|"crane"|"serpent"|None
+        self.db.battlecry_bonus = 0      # Warrior party buff rounds remaining
+
         # Resting
         self.db.is_resting = False
 
@@ -133,6 +139,10 @@ class Character(ObjectParent, DefaultCharacter):
         self.db.mana = self.db.max_mana
         self.db.kai  = self.db.max_kai
 
+        # Grant racial auto-grant skills
+        from world.skills import auto_grant_racial_skills
+        auto_grant_racial_skills(self)
+
     def at_post_puppet(self, **kwargs):
         """Send the status line immediately when a player connects/puppets.
         For newly created characters (chargen_complete is exactly False),
@@ -147,6 +157,8 @@ class Character(ObjectParent, DefaultCharacter):
 
     def at_after_move(self, source_location, move_type="move", **kwargs):
         """Interrupt rest, break stealth, and exit combat if the character moves."""
+        import time as _time
+
         # Stealth movement checks
         if self.db.is_hidden:
             from world.stealth import noise_check, detection_check
@@ -169,6 +181,23 @@ class Character(ObjectParent, DefaultCharacter):
                         )
                         break
 
+        # Perception: player spots hidden chars in new room
+        from world.skills import has_skill, perception_check
+        if has_skill(self, "perception"):
+            for obj in self.location.contents:
+                if obj is self or not getattr(obj.db, "is_hidden", False):
+                    continue
+                if perception_check(self, obj):
+                    obj.db.is_hidden = False
+                    self.msg(f"|yYour keen senses reveal {obj.key} hiding in the shadows!|n")
+                    obj.msg(f"|r{self.key} spots you!|n")
+
+        # Footprint trail for tracking skill
+        if source_location:
+            visitors = list(getattr(source_location.db, "recent_visitors", None) or [])
+            visitors.append({"name": self.key, "time": _time.time()})
+            source_location.db.recent_visitors = visitors[-10:]
+
         if self.db.is_resting:
             scripts = self.scripts.get("resting")
             if scripts:
@@ -190,6 +219,7 @@ class Character(ObjectParent, DefaultCharacter):
         col = hp_colour(hp, hp_max)
         hidden_tag = "|x[HIDDEN]|n " if self.db.is_hidden else ""
         rest_tag = "|c[REST]|n " if self.db.is_resting else ""
+        form_tag = f"|m[{self.db.active_form.upper()}]|n " if self.db.active_form else ""
         hp_part = f"[|wHP|n: {col}{hp}/{hp_max}|n]"
 
         char_class = self.db.char_class or "warrior"
@@ -214,7 +244,7 @@ class Character(ObjectParent, DefaultCharacter):
         else:
             energy_part = ""
 
-        return f"{hidden_tag}{rest_tag}{hp_part}{energy_part} {lv_part}"
+        return f"{hidden_tag}{rest_tag}{form_tag}{hp_part}{energy_part} {lv_part}"
 
     # ── appearance ────────────────────────────────────────────────────────────
 

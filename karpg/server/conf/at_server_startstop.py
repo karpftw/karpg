@@ -30,9 +30,10 @@ def at_server_start():
     This is called every time the server starts up, regardless of
     how it was shut down.
     """
-    from world.newhaven import build_newhaven, patch_newhaven_room_types
+    from world.newhaven import build_newhaven, patch_newhaven_room_types, patch_newhaven_outdoors
     build_newhaven()
     patch_newhaven_room_types()
+    patch_newhaven_outdoors()
 
 
 def at_server_stop():

@@ -267,6 +267,7 @@ SKELETON = {
         ("hlt",         12),
         ("chm",         3),
         ("faction",        "hostile"),
+        ("faction_type",   "undead"),
         ("ai_profile",     "tactical"),
         ("xp_value",       50),
         ("loot_table",     []),

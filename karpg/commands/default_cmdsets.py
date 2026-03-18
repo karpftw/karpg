@@ -34,6 +34,11 @@ from .wearing import CmdWear, CmdRemove
 from .train import CmdTrain
 from .xp import CmdXP
 from .stealth import CmdHide
+from .skills import (
+    CmdSkills, CmdLearn, CmdPick, CmdSteal, CmdTrack, CmdBandage,
+    CmdTurn, CmdIntimidate, CmdForage, CmdIdentify, CmdSearch,
+    CmdDisarm, CmdSetTrap, CmdBattleCry, CmdForm,
+)
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -70,6 +75,21 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdTrain)
         self.add(CmdXP)
         self.add(CmdHide)
+        self.add(CmdSkills)
+        self.add(CmdLearn)
+        self.add(CmdPick)
+        self.add(CmdSteal)
+        self.add(CmdTrack)
+        self.add(CmdBandage)
+        self.add(CmdTurn)
+        self.add(CmdIntimidate)
+        self.add(CmdForage)
+        self.add(CmdIdentify)
+        self.add(CmdSearch)
+        self.add(CmdDisarm)
+        self.add(CmdSetTrap)
+        self.add(CmdBattleCry)
+        self.add(CmdForm)
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):

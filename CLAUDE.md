@@ -42,6 +42,8 @@ Strict separation of concerns — keep Evennia imports out of `world/`:
 | Commands | `commands/train.py` | `train` — level-up at trainer NPC |
 | Commands | `commands/stealth.py` | `hide` — enter stealth (Thief/Elf/Halfling) |
 | Engine | `world/stealth.py` | Stealth math: score, hide/noise/detection checks |
+| Engine | `world/skills.py` | Skill registry + all skill math (perception, combat mastery, dodge, parry, etc.) |
+| Commands | `commands/skills.py` | `skills`, `learn`, `pick`, `steal`, `track`, `bandage`, `turn`, `intimidate`, `forage`, `identify`, `search`, `disarm`, `settrap`, `battlecry`, `form` |
 | Script | `typeclasses/combat_script.py` | 4-second tick manager + combatant state |
 | Script | `typeclasses/resting_script.py` | Out-of-combat HP regen tick |
 | Typeclasses | `typeclasses/characters.py` | Player character typeclass |
@@ -172,21 +174,38 @@ Admin commands (`setclass`, `setrace`) in `commands/chargen.py` remain for testi
 
 ---
 
-## Skills System (design goal — not yet implemented)
+## Skills System
 
-Skills scale with relevant stats. Most are class-restricted. Lives in `world/skills.py`
-(future). Each skill has a `check(combatant)` returning success chance based on relevant stats.
+Implemented in `world/skills.py` (registry + math) and `commands/skills.py` (commands).
+Each skill has proficiency levels 1–5 (Novice → Master). CP to learn/advance at trainer NPC.
+Auto-use advancement: successful uses auto-level the skill (50/100/200/400 thresholds).
 
-| Skill | Primary Stat | Class(es) | Notes |
-|---|---|---|---|
-| Stealth | AGI | Thief | Prerequisite for Backstab; detected by enemy Perception |
-| Backstab | AGI + STR | Thief | Only usable while hidden; single-hit, massive damage |
-| Thievery | AGI + INT | Thief | Steal gold/items from characters |
-| Lock Picking | AGI + INT | Thief | Open locked doors/chests |
-| Traps | INT | Thief | Detect and disarm traps |
-| Tracking | INT | Ranger/Druid | Follow character trails |
-| Perception | INT | All | Spot hidden things, detect stealthed characters |
-| Magic Resistance | WIS + INT | All | Passive damage reduction vs spells |
+| Skill | Type | Primary Stats | Eligible Classes/Races | Notes |
+|---|---|---|---|---|
+| Perception | passive | INT | All | Spot hidden chars on room entry + combat round |
+| Combat Mastery | passive | STR, AGI | Warrior | +2 acc +1 dmg per level |
+| Dodge | passive | AGI | Thief, Mystic / Elf, Halfling | % chance to avoid hit; cap 30% |
+| Dual Wield | passive | AGI | Warrior, Thief, Warlock, Gypsy | Extra off-hand attacks |
+| Parry | passive | STR | Warrior, Warlock | % chance to halve damage; cap 25% |
+| Shield Block | passive | STR | Warrior, Priest | % chance to negate hit (with shield); cap 20% |
+| Encumbrance Bonus | passive | — | Half-Orc racial | ×1.2 carry cap; auto-granted |
+| Nightvision | passive | — | Dwarf, Elf racial | See in dark rooms; auto-granted |
+| Stealth | passive | AGI | Thief / Elf, Halfling | `hide` command; prerequisite for Backstab |
+| Backstab | active | AGI, STR | Thief | 5× damage from stealth; `backstab <target>` |
+| Outdoor Regen | passive | HLT | Druid | +1 HP/resting tick per level outdoors |
+| Negotiate | passive | CHM | Gypsy | Shop discount (stub, future) |
+| Unarmed Forms | passive | STR, AGI | Mystic | Tiger/crane/serpent stances; `form <stance>` |
+| Lockpick | active | AGI, INT | Thief / Gnome (+3 bonus) | `pick <door>`; unlocks locked exits |
+| Thievery | active | AGI, INT | Thief, Gypsy | `steal <target>`; gold or item |
+| Track | active | INT | Druid | `track <name>`; reads footprint trail |
+| First Aid | active | WIS | Warrior, Druid, Priest | `bandage [target]`; HLT+level×2 HP; 60s CD |
+| Turn Undead | active | WIS, INT | Priest | `turn`; flee or damage undead; 30s CD |
+| Intimidate | active | STR, CHM | Warrior, Warlock | `intimidate <t>`; frightened condition |
+| Battle Cry | active | STR, CHM | Warrior | `battlecry`; +5 acc/level to allies for 3 rounds |
+| Disarm | active | STR, AGI | Warrior | `disarm <target>`; knock weapon to floor |
+| Traps | active | INT, AGI | Thief | `search`/`disarm trap`/`settrap <type>` |
+| Forage | active | INT, WIS | Druid | `forage`; outdoor rooms; spawns herbs |
+| Identify | active | INT | Mage, Druid | `identify <item>`; reveal hidden stats |
 
 ---
 
@@ -315,11 +334,21 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
   room visibility filtering, NPC target exclusion, backstab requires stealth, reveal on
   attack/cast, `[HIDDEN]` prompt tag (`world/stealth.py`, `commands/stealth.py`)
 - INT-based crit chance: `get_crit_chance()` in `world/stats.py`, 1% per INT point (cap 25%)
+- Skills system: `world/skills.py` (central registry), `commands/skills.py` (16 skill commands)
+  - Passive combat skills: combat_mastery, dodge, parry, shield_block, dual_wield, unarmed_forms
+  - Racial auto-grants: encumbrance_bonus (Half-Orc), nightvision (Dwarf/Elf)
+  - Active skills: lockpick, thievery, track, first_aid, turn_undead, intimidate, battle_cry, disarm, traps, forage, identify
+  - Outdoor system: `db.is_outdoor` on Newhaven rooms; Druid hp_regen_outdoor; forage
+  - Locked bandit hideout exit on South Road (difficulty 15); spike trap in Arena Entrance
+  - Footprint trails: `db.recent_visitors` on all rooms, updated on every player move
+  - `faction_type: undead` on skeleton prototype for turn_undead targeting
+  - CP-based learn/advance economy at trainer NPC (tagged `skill_trainer`)
+  - Proficiency levels: Novice → Master (auto-advance on use count)
+  - `[FORM]` tag in status prompt when Mystic has active stance
 
 **Not yet implemented (rough priority order):**
 1. HLT milestone bonus HP (at HLT 12/15/18 on our scale)
-2. Skills system (lockpick, traps, tracking, perception) — `world/skills.py`
-3. Loot drops (loot_table exists, drop logic not written)
+2. Loot drops (loot_table exists, drop logic not written)
 4. Ranged combat (weapons have attack_range, no mechanic)
 5. CHM → merchant pricing
 6. Merchant NPCs + shop commands (stubs exist in Newhaven, no buy/sell logic)

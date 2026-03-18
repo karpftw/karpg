@@ -43,6 +43,9 @@ class RestingScript(DefaultScript):
         hp_gain = 0
         if self.db.ticks >= 5:
             hp_gain = get_hp_regen(char)
+            from world.skills import hp_regen_outdoor_bonus
+            if getattr(char.location.db, "is_outdoor", False):
+                hp_gain += hp_regen_outdoor_bonus(char)
             char.db.hp = min(hp_max, hp + hp_gain)
 
         # Push updated status line — \r overwrites the previous line in-place

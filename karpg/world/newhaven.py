@@ -103,6 +103,18 @@ _ROOM_TYPES = {
     "Old East Road":              "wilderness",
     "Arena Entrance":             "dungeon",
     "The Arena Floor":            "dungeon",
+    "Bandit Hideout":             "dungeon",
+}
+
+# Rooms that are considered outdoors (for foraging / hp_regen_outdoor)
+_OUTDOOR_ROOMS = {
+    "Village Center of Newhaven",
+    "North Road",
+    "South Road",
+    "Training Grounds",
+    "Boatman's Dock",
+    "River Crossing",
+    "Old East Road",
 }
 
 
@@ -116,6 +128,27 @@ def patch_newhaven_room_types():
         for room in matches:
             if room.db.zone == "newhaven" and room.db.room_type != room_type:
                 room.db.room_type = room_type
+
+
+def patch_newhaven_outdoors():
+    """
+    Backfill db.is_outdoor and db.recent_visitors on existing Newhaven rooms.
+    Safe to call every server start.
+    """
+    for room_key in _OUTDOOR_ROOMS:
+        matches = evennia.search_object(room_key, typeclass="typeclasses.rooms.Room")
+        for room in matches:
+            if room.db.zone == "newhaven":
+                room.db.is_outdoor = True
+                if room.db.recent_visitors is None:
+                    room.db.recent_visitors = []
+    # Non-outdoor rooms also need recent_visitors initialized
+    for room_key in _ROOM_TYPES:
+        if room_key not in _OUTDOOR_ROOMS:
+            matches = evennia.search_object(room_key, typeclass="typeclasses.rooms.Room")
+            for room in matches:
+                if room.db.zone == "newhaven" and room.db.recent_visitors is None:
+                    room.db.recent_visitors = []
 
 
 def build_newhaven():
@@ -141,6 +174,8 @@ def build_newhaven():
     )
     center.db.is_start_room = True
     center.db.room_type = "center"
+    center.db.is_outdoor = True
+    center.db.recent_visitors = []
 
     north_road = _room(
         "North Road",
@@ -152,6 +187,8 @@ def build_newhaven():
         ),
     )
     north_road.db.room_type = "road"
+    north_road.db.is_outdoor = True
+    north_road.db.recent_visitors = []
 
     south_road = _room(
         "South Road",
@@ -163,6 +200,8 @@ def build_newhaven():
         ),
     )
     south_road.db.room_type = "road"
+    south_road.db.is_outdoor = True
+    south_road.db.recent_visitors = []
 
     weapon_shop = _room(
         "Harden's Weapons",
@@ -173,6 +212,7 @@ def build_newhaven():
         ),
     )
     weapon_shop.db.room_type = "shop"
+    weapon_shop.db.recent_visitors = []
 
     armor_shop = _room(
         "Fletcher's Armory",
@@ -183,6 +223,7 @@ def build_newhaven():
         ),
     )
     armor_shop.db.room_type = "shop"
+    armor_shop.db.recent_visitors = []
 
     spell_shop = _room(
         "The Arcane Shelf",
@@ -193,6 +234,7 @@ def build_newhaven():
         ),
     )
     spell_shop.db.room_type = "shop"
+    spell_shop.db.recent_visitors = []
 
     general_store = _room(
         "Newhaven General Store",
@@ -203,6 +245,7 @@ def build_newhaven():
         ),
     )
     general_store.db.room_type = "shop"
+    general_store.db.recent_visitors = []
 
     healer = _room(
         "Healer's Cottage",
@@ -213,6 +256,7 @@ def build_newhaven():
         ),
     )
     healer.db.room_type = "healer"
+    healer.db.recent_visitors = []
 
     training_grounds = _room(
         "Training Grounds",
@@ -223,6 +267,8 @@ def build_newhaven():
         ),
     )
     training_grounds.db.room_type = "trainer"
+    training_grounds.db.is_outdoor = True
+    training_grounds.db.recent_visitors = []
 
     boatman_dock = _room(
         "Boatman's Dock",
@@ -233,6 +279,8 @@ def build_newhaven():
         ),
     )
     boatman_dock.db.room_type = "dock"
+    boatman_dock.db.is_outdoor = True
+    boatman_dock.db.recent_visitors = []
 
     river_crossing = _room(
         "River Crossing",
@@ -243,6 +291,8 @@ def build_newhaven():
         ),
     )
     river_crossing.db.room_type = "wilderness"
+    river_crossing.db.is_outdoor = True
+    river_crossing.db.recent_visitors = []
 
     road_east = _room(
         "Old East Road",
@@ -253,6 +303,8 @@ def build_newhaven():
         ),
     )
     road_east.db.room_type = "wilderness"
+    road_east.db.is_outdoor = True
+    road_east.db.recent_visitors = []
 
     arena_entrance = _room(
         "Arena Entrance",
@@ -260,10 +312,17 @@ def build_newhaven():
             "Stone steps lead down to a vaulted antechamber lit by iron "
             "sconces. Scrawled carvings mark the walls — tallies of past "
             "combats, names of the fallen. The sounds of scrabbling and "
-            "hissing echo from deeper within."
+            "hissing echo from deeper within. A narrow passage seems to "
+            "lead east toward a heavy iron door."
         ),
     )
     arena_entrance.db.room_type = "dungeon"
+    arena_entrance.db.recent_visitors = []
+    arena_entrance.db.has_trap = True
+    arena_entrance.db.trap_difficulty = 12
+    arena_entrance.db.trap_damage = "1d6"
+    arena_entrance.db.trap_type = "spike"
+    arena_entrance.db.trap_discovered = False
 
     arena_floor = _room(
         "The Arena Floor",
@@ -275,6 +334,18 @@ def build_newhaven():
         ),
     )
     arena_floor.db.room_type = "dungeon"
+    arena_floor.db.recent_visitors = []
+
+    bandit_hideout = _room(
+        "Bandit Hideout",
+        desc=(
+            "A dank chamber carved from living rock. Bedrolls, empty bottles, "
+            "and stolen goods litter the floor. The bandits have made themselves "
+            "quite at home here."
+        ),
+    )
+    bandit_hideout.db.room_type = "dungeon"
+    bandit_hideout.db.recent_visitors = []
 
     # ── Exits ──────────────────────────────────────────────────────────────────
 
@@ -296,6 +367,21 @@ def build_newhaven():
 
     _link(arena_entrance, arena_floor,    "east",  "west")
 
+    # Locked bandit hideout east of South Road (requires lockpick)
+    bandit_door = create_object(
+        typeclass="typeclasses.exits.Exit",
+        key="heavy door",
+        aliases=["east", "e", "door"],
+        location=south_road,
+        destination=bandit_hideout,
+    )
+    bandit_door.db.lock_difficulty = 15
+    bandit_door.db.is_locked = True
+    bandit_door.db.desc = "A heavy iron-banded door, firmly locked."
+    bandit_door.locks.add("traverse:false()")
+    # Return exit from hideout (unlocked from inside)
+    _exit("west", bandit_hideout, south_road)
+
     # ── NPC stubs (non-hostile, no economy yet) ────────────────────────────────
 
     aldric = _npc(
@@ -307,6 +393,7 @@ def build_newhaven():
         aliases=["aldric", "trainer"],
     )
     aldric.tags.add("trainer", category="npc_role")
+    aldric.tags.add("skill_trainer", category="npc_role")
 
     _npc(
         "Harden",

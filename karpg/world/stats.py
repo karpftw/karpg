@@ -35,7 +35,8 @@ def _stat(combatant, name, default=10):
 
 def get_carry_capacity(combatant):
     """STR-based carry cap: STR * 48 lbs (baseline STR 10 → 480 lbs)."""
-    return _stat(combatant, "str") * 48
+    from world.skills import encumbrance_bonus_multiplier
+    return int(_stat(combatant, "str") * 48 * encumbrance_bonus_multiplier(combatant))
 
 
 def get_carried_weight(char):
@@ -54,6 +55,15 @@ def get_accuracy(combatant):
         over    = carried - cap
         penalty = int(min(20, (over / max(cap, 1)) * 20))
         acc    -= penalty
+
+    # Combat mastery accuracy bonus
+    from world.skills import combat_mastery_bonus, skill_level
+    if skill_level(combatant, "combat_mastery") > 0:
+        acc_bonus, _ = combat_mastery_bonus(combatant)
+        acc += acc_bonus
+
+    # Battle cry buff (tracked in db.battlecry_bonus)
+    acc += getattr(combatant.db, "battlecry_bonus", 0) * 5
 
     return acc
 
@@ -187,3 +197,7 @@ def recalc_stats(char):
     char.db.hp   = min(char.db.hp or 1, char.db.hp_max)
     char.db.mana = min(char.db.mana or 0, char.db.max_mana)
     char.db.kai  = min(char.db.kai or 0, char.db.max_kai)
+
+    # 9. Reapply racial auto-grant skills (safe to call repeatedly)
+    from world.skills import auto_grant_racial_skills
+    auto_grant_racial_skills(char)

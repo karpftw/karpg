@@ -240,6 +240,21 @@ class CombatScript(DefaultScript):
                         self._handle_death(target, combatant)
                         break
 
+                # Dual wield extra off-hand attacks
+                from world.skills import dual_wield_extra_attacks, has_skill
+                if (target.db.hp or 0) > 0 and has_skill(combatant, "dual_wield"):
+                    wielded_c = getattr(combatant.db, "wielded", None) or {}
+                    off = wielded_c.get("off_hand")
+                    if off and getattr(off.db, "item_type", "") != "shield":
+                        for _ in range(dual_wield_extra_attacks(combatant)):
+                            if (target.db.hp or 0) <= 0:
+                                break
+                            r = resolve_attack(combatant, target, "normal")
+                            self._broadcast_attack(r, combatant, target)
+                            if (target.db.hp or 0) <= 0:
+                                self._handle_death(target, combatant)
+                                break
+
                 # Reveal after backstab
                 if effective_mode == "backstab" and getattr(combatant.db, "is_hidden", False):
                     combatant.db.is_hidden = False
@@ -256,6 +271,8 @@ class CombatScript(DefaultScript):
         # End-of-round housekeeping
         self._tick_mana_regen()
         self._tick_all_conditions()
+        self._tick_perception_checks()
+        self._tick_battlecry()
         self._broadcast_hp_status()
         self._check_end_conditions()
 
@@ -364,6 +381,27 @@ class CombatScript(DefaultScript):
     def _broadcast_attack(self, result, attacker, target):
         """Send personalized attack messages to combatants."""
         mode = result.mode
+
+        # Passive defense messages
+        if getattr(result, "blocked", False):
+            self._send(attacker, f"{target.key} |Cblocks your attack with their shield!|n")
+            self._send(target, f"|CYou block {attacker.key}'s attack with your shield!|n")
+            self._broadcast(
+                f"|C{target.key} blocks {attacker.key}'s attack with their shield!|n",
+                exclude=[attacker, target],
+            )
+            return
+        if getattr(result, "dodged", False):
+            self._send(attacker, f"{target.key} |Cnimbly dodges your attack!|n")
+            self._send(target, f"|CYou nimbly dodge {attacker.key}'s attack!|n")
+            self._broadcast(
+                f"|C{target.key} nimbly dodges {attacker.key}'s attack!|n",
+                exclude=[attacker, target],
+            )
+            return
+
+        parry_note = " |C[PARRIED]|n" if getattr(result, "parried", False) else ""
+
         if result.hit:
             if result.critical:
                 dr_note = f" |x[DR {result.defense_resistance}]|n" if result.defense_resistance else ""
@@ -388,15 +426,15 @@ class CombatScript(DefaultScript):
                 dmg_colour = "|Y" if mode == "normal" else "|M"
                 atk_msg = (
                     f"You {_verb(mode, True)} {target.key} "
-                    f"for {dmg_colour}{result.final_damage}|n damage!{dr_note}"
+                    f"for {dmg_colour}{result.final_damage}|n damage!{dr_note}{parry_note}"
                 )
                 def_msg = (
                     f"{attacker.key} {_verb(mode, False)} you "
-                    f"for {dmg_colour}{result.final_damage}|n damage!{dr_note}"
+                    f"for {dmg_colour}{result.final_damage}|n damage!{dr_note}{parry_note}"
                 )
                 obs_msg = (
                     f"{attacker.key} {_verb(mode, False)} {target.key} "
-                    f"for {dmg_colour}{result.final_damage}|n damage!{dr_note}"
+                    f"for {dmg_colour}{result.final_damage}|n damage!{dr_note}{parry_note}"
                 )
         else:
             atk_msg = f"You swing at {target.key} and |xMISS!|n"
@@ -515,6 +553,34 @@ class CombatScript(DefaultScript):
             expired = tick_conditions(combatant)
             for cond_name in expired:
                 self._send(combatant, f"|xYour {cond_name} condition has worn off.|n")
+
+    def _tick_perception_checks(self):
+        """Each combat round: NPCs with high INT + players with perception try to spot hidden combatants."""
+        from world.skills import perception_check, has_skill
+        combatants = self.ndb.combatants or {}
+        for spotter, s_state in list(combatants.items()):
+            for hidden, h_state in list(combatants.items()):
+                if spotter is hidden:
+                    continue
+                if not getattr(hidden.db, "is_hidden", False):
+                    continue
+                if s_state["faction"] == h_state["faction"]:
+                    continue
+                is_npc = getattr(spotter.db, "ai_profile", None) is not None
+                if is_npc or has_skill(spotter, "perception"):
+                    if perception_check(spotter, hidden):
+                        hidden.db.is_hidden = False
+                        self._send(spotter, f"|yYou spot {hidden.key} lurking nearby!|n")
+                        self._send(hidden, f"|r{spotter.key} spots you!|n")
+
+    def _tick_battlecry(self):
+        """Decrement battlecry bonus counter each round."""
+        for comb in (self.ndb.combatants or {}):
+            bonus = getattr(comb.db, "battlecry_bonus", 0) or 0
+            if bonus > 0:
+                comb.db.battlecry_bonus = bonus - 1
+                if comb.db.battlecry_bonus == 0:
+                    self._send(comb, "|xThe battle cry's energy fades.|n")
 
     # ------------------------------------------------------------------
     # End-condition check
