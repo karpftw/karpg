@@ -43,6 +43,10 @@ from .economy import (
     CmdGold, CmdBalance, CmdDeposit, CmdWithdraw,
     CmdList, CmdBuy, CmdSell, CmdDrink,
 )
+from .class_abilities import (
+    CmdChallenge, CmdSurge, CmdVanish, CmdCommune,
+    CmdConsecrate, CmdDarkPact, CmdHex, CmdMeditate,
+)
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -103,6 +107,14 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdBuy)
         self.add(CmdSell)
         self.add(CmdDrink)
+        self.add(CmdChallenge)
+        self.add(CmdSurge)
+        self.add(CmdVanish)
+        self.add(CmdCommune)
+        self.add(CmdConsecrate)
+        self.add(CmdDarkPact)
+        self.add(CmdHex)
+        self.add(CmdMeditate)
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):

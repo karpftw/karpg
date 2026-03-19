@@ -67,6 +67,17 @@ def get_accuracy(combatant):
     # Battle cry buff (tracked in db.battlecry_bonus)
     acc += getattr(combatant.db, "battlecry_bonus", 0) * 5
 
+    # Dwarf Stonecunning: +10 acc in dungeon rooms
+    from world.race_bonuses import stonecunning_bonus, half_orc_blood_rage_bonus
+    race = getattr(combatant.db, "race", None)
+    if race == "dwarf":
+        acc_sc, _ = stonecunning_bonus(combatant)
+        acc += acc_sc
+
+    # Half-Orc Blood Rage: +5 acc when HP < 25%
+    if race == "half_orc":
+        acc += half_orc_blood_rage_bonus(combatant)
+
     return acc
 
 
@@ -74,7 +85,16 @@ def get_defense(combatant):
     """Total defense: AC + AGI/10 secondary dodge bonus."""
     ac = _stat(combatant, "ac", 10)
     agi = _stat(combatant, "agi")
-    return ac + agi // 10
+    defense = ac + agi // 10
+
+    # Dwarf Stonecunning: +10 def in dungeon rooms
+    race = getattr(combatant.db, "race", None)
+    if race == "dwarf":
+        from world.race_bonuses import stonecunning_bonus
+        _, def_sc = stonecunning_bonus(combatant)
+        defense += def_sc
+
+    return defense
 
 
 def get_max_hp(combatant):
@@ -116,9 +136,11 @@ def get_max_kai(combatant):
 
 
 def get_mana_regen(combatant):
-    """WIS-based mana per round: WIS//5 + 1."""
+    """WIS-based mana per round: WIS//5 + 1. Gnomes gain +1 from Mana Affinity."""
     wis = _stat(combatant, "wis")
-    return wis // 5 + 1
+    base = wis // 5 + 1
+    from world.race_bonuses import gnome_mana_regen_bonus
+    return base + gnome_mana_regen_bonus(combatant)
 
 
 def get_attacks_per_round(combatant, attack_mode="normal"):

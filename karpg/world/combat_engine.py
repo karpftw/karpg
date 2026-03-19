@@ -151,6 +151,7 @@ class AttackResult:
     dodged: bool = False
     parried: bool = False
     blocked: bool = False
+    lucky: bool = False
 
 
 @dataclass
@@ -240,6 +241,13 @@ def resolve_attack(attacker, target, mode="normal"):
             result.hit = False
             result.dodged = True
             tick_skill_use(target, "dodge")
+
+    # Halfling Lucky: 5% chance to negate any hit that made it through other defenses
+    if result.hit and getattr(target.db, "race", None) == "halfling":
+        from .race_bonuses import halfling_lucky_proc
+        if halfling_lucky_proc():
+            result.hit = False
+            result.lucky = True
 
     if not result.hit:
         result.attacker_hp = attacker.db.hp or 0

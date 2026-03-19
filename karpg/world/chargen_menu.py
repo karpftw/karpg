@@ -5,6 +5,7 @@ EvMenu flow:
     node_welcome
         → node_race → node_race_confirm
         → node_class → node_class_confirm
+        → node_lore_blurb   (race+class lore + passive bonus preview)
         → node_stats
         → node_appearance_hair_length → node_appearance_hair_color → node_appearance_eye_color
         → node_confirm
@@ -16,6 +17,7 @@ import evennia
 from world.classes import get_class, list_classes
 from world.races import get_race, list_races
 from world.stats import recalc_stats
+from world.lore import get_combo_description
 
 STARTING_CP = 30
 STAT_CAP_ABOVE_BASE = 10   # max points a player can add above racial base during chargen
@@ -273,9 +275,46 @@ def node_class_confirm(caller, raw_string, **kwargs):
         f"  Two-handed:    {two_hand}\n"
     )
     options = (
-        {"key": ("1", "yes", "y", "confirm"), "desc": "Confirm — choose this class", "goto": "node_stats"},
+        {"key": ("1", "yes", "y", "confirm"), "desc": "Confirm — choose this class", "goto": _apply_class_and_show_lore},
         {"key": ("2", "no",  "n", "back"),    "desc": "Go back",                     "goto": "node_class"},
     )
+    return text, options
+
+
+def _apply_class_and_show_lore(caller, raw_string, **kwargs):
+    """Store the chosen class and proceed to the lore blurb."""
+    caller.db.char_class = caller.ndb.chargen_pending_class
+    return "node_lore_blurb"
+
+
+# ─── Node: Lore Blurb ─────────────────────────────────────────────────────────
+
+def node_lore_blurb(caller, raw_string, **kwargs):
+    race_name  = getattr(caller.ndb, "chargen_pending_race",  None) or caller.db.race       or "human"
+    class_name = getattr(caller.ndb, "chargen_pending_class", None) or caller.db.char_class or "warrior"
+
+    # Passive bonus label
+    race = get_race(race_name)
+    bonus = race.get("passive_bonus", {}) if race else {}
+    bonus_label = bonus.get("label", "")
+    bonus_desc  = bonus.get("description", "")
+
+    blurb = get_combo_description(race_name, class_name)
+    display_race  = race_name.replace("_", " ").capitalize()
+    display_class = class_name.capitalize()
+
+    passive_line = (
+        f"\n  |yPassive Bonus:|n |w{bonus_label}|n — {bonus_desc}"
+        if bonus_label else ""
+    )
+
+    text = (
+        f"\n|y{'=' * 50}|n\n"
+        f"  {display_race} {display_class}\n"
+        f"|y{'=' * 50}|n\n\n"
+        f"{blurb}{passive_line}\n"
+    )
+    options = ({"desc": "Continue to stat allocation", "goto": "node_stats"},)
     return text, options
 
 

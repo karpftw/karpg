@@ -118,6 +118,10 @@ class Character(ObjectParent, DefaultCharacter):
         self.db.active_form     = None   # Mystic stance: "tiger"|"crane"|"serpent"|None
         self.db.battlecry_bonus = 0      # Warrior party buff rounds remaining
 
+        # Class ability state
+        self.db.hex_stacks      = 0      # Gypsy Hex stacks on this character (0-3)
+        self.db.meditate_ticks  = 0      # Mystic Meditate ticks remaining
+
         # Resting
         self.db.is_resting = False
 

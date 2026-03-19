@@ -273,6 +273,7 @@ class CombatScript(DefaultScript):
         self._tick_all_conditions()
         self._tick_perception_checks()
         self._tick_battlecry()
+        self._tick_consecrate()
         self._broadcast_hp_status()
         self._check_end_conditions()
 
@@ -401,6 +402,14 @@ class CombatScript(DefaultScript):
             self._send(target, f"|CYou nimbly dodge {attacker.key}'s attack!|n")
             self._broadcast(
                 f"|C{target.key} nimbly dodges {attacker.key}'s attack!|n",
+                exclude=[attacker, target],
+            )
+            return
+        if getattr(result, "lucky", False):
+            self._send(attacker, f"|xYour attack on {target.key} is turned aside by luck!|n")
+            self._send(target, f"|Y[LUCKY]|n {attacker.key}'s attack barely misses you!")
+            self._broadcast(
+                f"|Y{target.key} narrowly avoids {attacker.key}'s attack by sheer luck!|n",
                 exclude=[attacker, target],
             )
             return
@@ -538,6 +547,7 @@ class CombatScript(DefaultScript):
 
     def _tick_mana_regen(self):
         """Regenerate mana (or Kai) for all combatants."""
+        from world.conditions import has_condition
         for combatant in (self.ndb.combatants or {}):
             regen = get_mana_regen(combatant)
             max_mana = combatant.db.max_mana or 0
@@ -547,6 +557,10 @@ class CombatScript(DefaultScript):
                     (combatant.db.mana or 0) + regen
                 )
             elif (combatant.db.max_kai or 0) > 0:
+                # Meditating Mystics get double Kai regen
+                if has_condition(combatant, "meditating"):
+                    from world.class_abilities import MEDITATE_KAI_MULT
+                    regen = regen * MEDITATE_KAI_MULT
                 combatant.db.kai = min(
                     combatant.db.max_kai,
                     (combatant.db.kai or 0) + regen
@@ -587,6 +601,31 @@ class CombatScript(DefaultScript):
                 if comb.db.battlecry_bonus == 0:
                     self._send(comb, "|xThe battle cry's energy fades.|n")
 
+    def _tick_consecrate(self):
+        """Apply holy damage to undead in consecrated rooms and tick the counter."""
+        room = self.obj
+        ticks = getattr(room.db, "consecrated_ticks", 0) or 0
+        if ticks <= 0:
+            return
+
+        from world.class_abilities import consecrate_damage
+        combatants = self.ndb.combatants or {}
+        for combatant, state in list(combatants.items()):
+            faction_type = getattr(combatant.db, "faction_type", None)
+            if faction_type == "undead" and (combatant.db.hp or 0) > 0:
+                dmg = consecrate_damage()
+                combatant.db.hp = max(0, (combatant.db.hp or 0) - dmg)
+                self._broadcast(
+                    f"|WThe consecrated ground burns {combatant.key} for {dmg} holy damage!|n"
+                )
+                if (combatant.db.hp or 0) <= 0:
+                    self._handle_death(combatant, None)
+
+        room.db.consecrated_ticks = ticks - 1
+        if room.db.consecrated_ticks <= 0:
+            room.db.consecrated_ticks = 0
+            self._broadcast("|xThe holy consecration fades.|n")
+
     # ------------------------------------------------------------------
     # End-condition check
     # ------------------------------------------------------------------
@@ -611,6 +650,9 @@ class CombatScript(DefaultScript):
             c.db.in_combat = None
             if (c.db.hp or 0) > 0:
                 self._send(c, "|gCombat has ended.|n")
+            # Clear hex stacks on combat end
+            if hasattr(c.db, "hex_stacks") or getattr(c.db, "hex_stacks", None) is not None:
+                c.db.hex_stacks = 0
         self.ndb.combatants = {}
         self.stop()
 

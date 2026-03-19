@@ -67,6 +67,10 @@ class CmdTrain(Command):
 
         # Award CP and lives
         cp_gained = cp_for_level(new_level)
+        # Human Adaptable: +2 bonus CP per level-up
+        if (caller.db.race or "human") == "human":
+            from world.race_bonuses import HUMAN_CP_BONUS
+            cp_gained += HUMAN_CP_BONUS
         caller.db.cp    = (caller.db.cp or 0) + cp_gained
         caller.db.lives = (caller.db.lives or 9) + 1
 
@@ -94,8 +98,9 @@ class CmdTrain(Command):
         if new_kai > 0 or old_kai > 0:
             msg_lines.append(f"  |wKai:|n   {old_kai} -> {new_kai}")
 
+        cp_note = " |x(+2 Adaptable)|n" if (caller.db.race or "human") == "human" else ""
         msg_lines.append(
-            f"  |wCP awarded:|n {cp_gained}  "
+            f"  |wCP awarded:|n {cp_gained}{cp_note}  "
             f"(Total unspent: {caller.db.cp})"
         )
         msg_lines.append(f"  |wLives:|n {caller.db.lives}")

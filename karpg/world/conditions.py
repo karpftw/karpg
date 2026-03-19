@@ -82,6 +82,30 @@ CONDITIONS = {
         "can_act": True,
         "description": "Weakened; slightly reduced combat effectiveness.",
     },
+    "provoked": {
+        "name": "provoked",
+        "accuracy_modifier": -5,
+        "defense_modifier": +5,
+        "attacks_modifier": 0,
+        "can_act": True,
+        "description": "Provoked; NPCs focus on you — reduced accuracy, increased defense.",
+    },
+    "hexed": {
+        "name": "hexed",
+        "accuracy_modifier": -5,
+        "defense_modifier": 0,
+        "attacks_modifier": 0,
+        "can_act": True,
+        "description": "Hexed; accuracy reduced by a gypsy curse. Stacks up to 3 times.",
+    },
+    "meditating": {
+        "name": "meditating",
+        "accuracy_modifier": 0,
+        "defense_modifier": +10,
+        "attacks_modifier": 0,
+        "can_act": False,
+        "description": "Meditating; cannot act but gains improved defense and Kai regen.",
+    },
 }
 
 
@@ -98,8 +122,24 @@ def apply_condition(combatant, name, duration=-1, source=None):
     """
     Apply a condition to combatant. Identical conditions don't stack
     (duration is refreshed if longer).
+
+    Elf racial passive: 5% chance to resist any incoming condition.
     """
     name = name.lower()
+
+    # Elf Spell Resistance: 5% chance to resist
+    race = getattr(combatant.db, "race", None)
+    if race == "elf":
+        from world.race_bonuses import elf_condition_resist_check
+        if elf_condition_resist_check():
+            try:
+                combatant.msg(
+                    f"|cYour innate spell resistance deflects the {name} condition!|n"
+                )
+            except Exception:
+                pass
+            return
+
     conditions = combatant.db.conditions
     if conditions is None:
         conditions = []
@@ -172,7 +212,8 @@ def get_combat_modifiers(attacker, target):
     """
     Return (accuracy_mod, defense_mod) based on conditions.
 
-    accuracy_mod: sum of accuracy modifiers from attacker's conditions.
+    accuracy_mod: sum of accuracy modifiers from attacker's conditions,
+                  plus hex stack penalty on the attacker.
     defense_mod: sum of defense modifiers from target's conditions
                  (negative values make the target easier to hit).
     """
@@ -183,6 +224,10 @@ def get_combat_modifiers(attacker, target):
         cond_def = CONDITIONS.get(cond_entry.get("name", ""))
         if cond_def:
             acc_mod += cond_def["accuracy_modifier"]
+
+    # Hex stacks: -5 acc per stack (tracked separately to support stacking)
+    hex_stacks = getattr(attacker.db, "hex_stacks", 0) or 0
+    acc_mod += hex_stacks * -5
 
     for cond_entry in (target.db.conditions or []):
         cond_def = CONDITIONS.get(cond_entry.get("name", ""))

@@ -18,6 +18,12 @@ RACE_REGISTRY = {
         "magic_resistance_bonus": 0,
         "xp_modifier": 1.0,
         "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "cp_per_level",
+            "amount": 2,
+            "label": "Adaptable",
+            "description": "Gain +2 bonus CP each time you level up.",
+        },
     },
     "dwarf": {
         "stat_mods": {"str": 1, "agi": -1, "int": -1, "wis": 1, "hlt": 1, "chm": -1},
@@ -25,6 +31,11 @@ RACE_REGISTRY = {
         "magic_resistance_bonus": 10,
         "xp_modifier": 1.0,
         "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "stonecunning",
+            "label": "Stonecunning",
+            "description": "+10 accuracy and +10 defense in dungeon rooms.",
+        },
     },
     "elf": {
         "stat_mods": {"str": -1, "agi": 1, "int": 1, "wis": 0, "hlt": -1, "chm": 1},
@@ -32,6 +43,11 @@ RACE_REGISTRY = {
         "magic_resistance_bonus": 0,
         "xp_modifier": 1.0,
         "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "spell_resist",
+            "label": "Spell Resistance",
+            "description": "5% chance to resist any incoming condition application.",
+        },
     },
     "half_orc": {
         "stat_mods": {"str": 1, "agi": 0, "int": -1, "wis": -1, "hlt": 1, "chm": -2},
@@ -39,6 +55,11 @@ RACE_REGISTRY = {
         "magic_resistance_bonus": 0,
         "xp_modifier": 1.0,
         "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "blood_rage",
+            "label": "Blood Rage",
+            "description": "When HP falls below 25%, gain +5 accuracy.",
+        },
     },
     "gnome": {
         "stat_mods": {"str": -1, "agi": 1, "int": 1, "wis": 0, "hlt": 0, "chm": -1},
@@ -46,6 +67,11 @@ RACE_REGISTRY = {
         "magic_resistance_bonus": 5,
         "xp_modifier": 1.0,
         "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "mana_affinity",
+            "label": "Mana Affinity",
+            "description": "+1 mana per regeneration tick.",
+        },
     },
     "halfling": {
         "stat_mods": {"str": -2, "agi": 2, "int": -1, "wis": 0, "hlt": 0, "chm": 0},
@@ -53,6 +79,11 @@ RACE_REGISTRY = {
         "magic_resistance_bonus": 0,
         "xp_modifier": 1.0,
         "two_handed_allowed": False,
+        "passive_bonus": {
+            "type": "lucky",
+            "label": "Lucky",
+            "description": "5% chance to negate any incoming hit.",
+        },
     },
 }
 
