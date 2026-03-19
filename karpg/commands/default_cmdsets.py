@@ -47,6 +47,7 @@ from .class_abilities import (
     CmdChallenge, CmdSurge, CmdVanish, CmdCommune,
     CmdConsecrate, CmdDarkPact, CmdHex, CmdMeditate,
 )
+from .travel import CmdGoSkiff
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -115,6 +116,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdDarkPact)
         self.add(CmdHex)
         self.add(CmdMeditate)
+        self.add(CmdGoSkiff)
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):

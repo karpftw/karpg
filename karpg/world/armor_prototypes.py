@@ -260,5 +260,47 @@ HEAVY_ARMOR = [
     },
 ]
 
+## ── New Silvermere Armor ─────────────────────────────────────────────────────
+
+NEW_SILVERMERE_ARMOR = [
+    {
+        "prototype_key": "SCALE_MAIL",
+        "typeclass": "typeclasses.armor.Armor",
+        "key": "scale mail",
+        "desc": "Overlapping iron scales riveted to a leather backing. Heavier than chain but offers stronger protection.",
+        "db.slot": "chest",
+        "db.ac_bonus": 5,
+        "db.dr_bonus": 2,
+        "db.armor_type": "medium",
+        "db.weight": 18.0,
+        "db.value": 150,
+    },
+    {
+        "prototype_key": "TOWER_SHIELD",
+        "typeclass": "typeclasses.armor.Armor",
+        "key": "tower shield",
+        "desc": "A full-body shield of iron-banded oak, tall enough to shelter behind completely. Extremely heavy.",
+        "db.slot": "off_hand",
+        "db.ac_bonus": 3,
+        "db.dr_bonus": 0,
+        "db.armor_type": "heavy",
+        "db.item_type": "shield",
+        "db.weight": 12.0,
+        "db.value": 120,
+    },
+    {
+        "prototype_key": "GREATCLOAK",
+        "typeclass": "typeclasses.armor.Armor",
+        "key": "greatcloak",
+        "desc": "A heavy wool cloak with an oilskin outer layer, lined with rabbit fur. It turns cold and rain alike.",
+        "db.slot": "waist",
+        "db.ac_bonus": 1,
+        "db.dr_bonus": 0,
+        "db.armor_type": "cloth",
+        "db.weight": 2.0,
+        "db.value": 30,
+    },
+]
+
 # All prototypes combined
-ALL_ARMOR_PROTOTYPES = CLOTH_ARMOR + LEATHER_ARMOR + MEDIUM_ARMOR + HEAVY_ARMOR
+ALL_ARMOR_PROTOTYPES = CLOTH_ARMOR + LEATHER_ARMOR + MEDIUM_ARMOR + HEAVY_ARMOR + NEW_SILVERMERE_ARMOR

@@ -49,11 +49,15 @@ def roll_dice(num, sides):
 
 def parse_dice(notation):
     """
-    Parse a dice notation string such as "2d6", "1d4", or "d8".
+    Parse a dice notation string such as "2d6", "1d4", "d8", or "1d8+2".
 
-    Returns (num, sides) tuple of ints.
+    Returns (num, sides) tuple of ints. Any +bonus suffix is ignored here;
+    use roll_notation() to get a total that includes the bonus.
     """
     notation = notation.strip().lower()
+    # Strip +bonus suffix if present
+    if "+" in notation:
+        notation = notation[:notation.rindex("+")]
     if "d" not in notation:
         raise ValueError(f"Invalid dice notation: {notation!r}")
     parts = notation.split("d", 1)
@@ -63,12 +67,19 @@ def parse_dice(notation):
 
 
 def roll_notation(notation):
-    """Roll dice from notation string. Returns (total, rolls_list)."""
+    """Roll dice from notation string, supporting optional +bonus (e.g. '1d8+2'). Returns (total, rolls_list)."""
+    notation = notation.strip().lower()
+    bonus = 0
+    if "+" in notation:
+        base, bonus_str = notation.rsplit("+", 1)
+        if bonus_str.isdigit():
+            bonus = int(bonus_str)
+            notation = base
     num, sides = parse_dice(notation)
     if sides == 0:
         return 0, []
     rolls = roll_dice(num, sides)
-    return sum(rolls), rolls
+    return sum(rolls) + bonus, rolls
 
 
 # ---------------------------------------------------------------------------

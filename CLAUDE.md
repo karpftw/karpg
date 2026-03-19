@@ -64,6 +64,8 @@ Strict separation of concerns — keep Evennia imports out of `world/`:
 | Spells | `world/spells.py` | Mana-based spell registry |
 | Conditions | `world/conditions.py` | Condition system |
 | Area | `world/newhaven.py` | Newhaven starting area builder |
+| Area | `world/newsilvermere.py` | New Silvermere area builder (levels 5–15) |
+| Commands | `commands/travel.py` | `go skiff` — transit between Newhaven and New Silvermere |
 | Prototypes | `world/prototypes.py` | NPC + weapon spawn prototypes |
 | Prototypes | `world/armor_prototypes.py` | Armor spawn prototypes |
 
@@ -368,6 +370,27 @@ or paralyzed (`can_act=False` skips extra attacks but not the base attack).
   contents (carried but not equipped) with `[W]`/`[A]`/`[!]`/`[?]` type tags, damage dice /
   AC / heal stats, weight and value columns, gold carried, and a color-coded 20-char carry
   bar (green < 75%, yellow < 100%, red = over cap). Overrides Evennia's default inventory.
+
+- New Silvermere area (`world/newsilvermere.py`): 22-room second town, levels 5–15. Reached
+  via `go skiff` from Boatman's Dock (Newhaven) ↔ Silvermere Pier. Includes: Crown Street /
+  Market Lane / Riverside Walk / Town Square spine; Adventurer's Guild (Universal Trainer +
+  skill_trainer); Silvermere Bank (Teller Halvard, `bank` tag); 10 shop NPCs (Helfgrim,
+  Colin, Thuluk, Jael, Skali, Lady Sentara, Aiken, Giovanni, Sister Margery, Barkeep Nessa,
+  Meia); three-room sewer dungeon with SEWER_RAT / WHITE_JELLY / CAVE_WORM spawns. `go skiff`
+  command in `commands/travel.py`; all new rooms tagged with `zone="newsilvermere"`.
+
+- New weapon prototypes (15): STILETTO, FALCHION, SCIMITAR, GREATSWORD, MACE, FLAIL,
+  MORNING_STAR (1d8+1), MAUL, SICKLE, BATTLE_AXE, HALBERD, SPEAR, TRIDENT, CROSSBOW,
+  SILVERY_MACE (1d8+2, holy, Temple-only). General goods: TORCH, IRON_RATION.
+
+- New armor prototypes: SCALE_MAIL (chest, AC5/DR2, medium), TOWER_SHIELD (off_hand, AC3,
+  shield), GREATCLOAK (waist proxy, cloth, AC1).
+
+- New monster prototypes: SEWER_RAT (lvl 4, 20 HP, 45 XP), WHITE_JELLY (lvl 5, 35 HP,
+  75 XP), CAVE_WORM (lvl 7, 60 HP, 150 XP, tactical).
+
+- `world/combat_engine.py`: `parse_dice` and `roll_notation` now handle `+bonus` suffix
+  (e.g. `1d8+2`) for MORNING_STAR / SILVERY_MACE and future enchanted weapons.
 
 **Not yet implemented (rough priority order):**
 1. HLT milestone bonus HP (at HLT 12/15/18 on our scale)

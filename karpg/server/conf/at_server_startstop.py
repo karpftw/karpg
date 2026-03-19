@@ -43,6 +43,15 @@ def at_server_start():
     patch_newhaven_bank()
     patch_newhaven_merchants()
 
+    from world.newsilvermere import (
+        build_newsilvermere,
+        patch_newsilvermere_room_types,
+        patch_newsilvermere_outdoors,
+    )
+    build_newsilvermere()
+    patch_newsilvermere_room_types()
+    patch_newsilvermere_outdoors()
+
     # Start the daily bank interest script if it's not already running
     import evennia
     if not evennia.search_script("daily_interest"):
