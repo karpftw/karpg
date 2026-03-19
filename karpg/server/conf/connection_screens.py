@@ -7,20 +7,20 @@ Displayed to the user before they log in.
 
 CONNECTION_SCREEN = """
 |b+==============================================================+|n
-|b|||n                                                            |b||n
-|b|||n    |Y██╗  ██╗ █████╗ ██████╗ ██████╗  ██████╗           |b||n
-|b|||n    |Y██║ ██╔╝██╔══██╗██╔══██╗██╔══██╗██╔════╝           |b||n
-|b|||n    |Y█████╔╝ ███████║██████╔╝██████╔╝██║  ███╗          |b||n
-|b|||n    |Y██╔═██╗ ██╔══██║██╔══██╗██╔═══╝ ██║   ██║          |b||n
-|b|||n    |Y██║  ██╗██║  ██║██║  ██║██║     ╚██████╔╝          |b||n
-|b|||n    |Y╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝      ╚═════╝          |b||n
-|b|||n                                                            |b||n
-|b|||n         |WA MajorMUD-inspired roleplaying adventure|n      |b||n
-|b|||n                                                            |b||n
+|b|||n                                                              |b|||n
+|b|||n    |Y██╗  ██╗ █████╗ ██████╗ ██████╗  ██████╗                  |b|||n
+|b|||n    |Y██║ ██╔╝██╔══██╗██╔══██╗██╔══██╗██╔════╝                  |b|||n
+|b|||n    |Y█████╔╝ ███████║██████╔╝██████╔╝██║  ███╗                 |b|||n
+|b|||n    |Y██╔═██╗ ██╔══██║██╔══██╗██╔═══╝ ██║   ██║                 |b|||n
+|b|||n    |Y██║  ██╗██║  ██║██║  ██║██║     ╚██████╔╝                 |b|||n
+|b|||n    |Y╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝      ╚═════╝                  |b|||n
+|b|||n                                                              |b|||n
+|b|||n         |WA MajorMUD-inspired roleplaying adventure|n            |b|||n
+|b|||n                                                              |b|||n
 |b+--------------------------------------------------------------+|n
-|b|||n  Have an account?   Type: |wconnect|n                       |b||n
-|b|||n  New adventurer?    Type: |wcreate|n                        |b||n
-|b|||n                                                            |b||n
-|b|||n  Need help?         Type: |whelp|n                          |b||n
-|b|||n  Re-show screen?    Type: |wlook|n                          |b||n
+|b|||n  Have an account?   Type: |wconnect|n                            |b|||n
+|b|||n  New adventurer?    Type: |wcreate|n                             |b|||n
+|b|||n                                                              |b|||n
+|b|||n  Need help?         Type: |whelp|n                               |b|||n
+|b|||n  Re-show screen?    Type: |wlook|n                               |b|||n
 |b+==============================================================+|n"""
