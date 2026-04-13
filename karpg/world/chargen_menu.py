@@ -482,6 +482,14 @@ def node_chargen_complete(caller, raw_string, **kwargs):
     caller.db.char_class = class_name
     caller.db.known_spells = []
 
+    # Class-specific starting spells
+    if class_name == "bard":
+        caller.db.known_spells = ["battle hymn", "taunt", "lullaby"]
+        # Auto-grant performance skill
+        _known_skills = dict(getattr(caller.db, "known_skills", None) or {})
+        _known_skills["performance"] = {"level": 1, "uses": 0}
+        caller.db.known_skills = _known_skills
+
     # 3. Recalculate all derived stats, restore HP/mana/kai to full
     recalc_stats(caller)
     caller.db.hp   = caller.db.hp_max

@@ -301,6 +301,69 @@ class CmdBackstab(Command):
 
 
 # ---------------------------------------------------------------------------
+# Shared cast logic
+# ---------------------------------------------------------------------------
+
+def _do_cast(caller, args, flavor="cast"):
+    """
+    Shared implementation for cast/sing commands.
+
+    flavor — "cast" or "sing"; controls the action word in feedback messages.
+    """
+    if caller.db.is_hidden:
+        caller.db.is_hidden = False
+        caller.msg("|yYour incantation disrupts your stealth!|n")
+        caller.location.msg_contents(
+            f"|y{caller.key} steps out of the shadows!|n", exclude=[caller]
+        )
+
+    if not args:
+        caller.msg(f"|rUsage: {flavor} <spell name>|n")
+        return
+
+    spell = get_spell(args)
+    if not spell:
+        # Try partial match
+        matches = [s for k, s in SPELL_REGISTRY.items() if args.lower() in k]
+        if len(matches) == 1:
+            spell = matches[0]
+        elif len(matches) > 1:
+            names = ", ".join(s["key"] for s in matches)
+            caller.msg(f"|rAmbiguous spell name. Did you mean: {names}?|n")
+            return
+        else:
+            caller.msg(f"|rUnknown spell: '{args}'. Type 'spells' to see your spellbook.|n")
+            return
+
+    known = caller.db.known_spells or []
+    if spell["key"] not in known:
+        caller.msg(f"|rYou don't know '{spell['key']}'.|n")
+        return
+
+    spell_class_school = spell.get("class_school")
+    char_class = getattr(caller.db, "char_class", None)
+    if char_class and spell_class_school:
+        if not can_use_spell_school(char_class, spell_class_school):
+            caller.msg(f"|rYour class cannot cast {spell_class_school}-school spells.|n")
+            return
+
+    mana = caller.db.mana or 0
+    cost = spell["mana_cost"]
+    if mana < cost:
+        caller.msg(f"|rNot enough mana! (need {cost}, have {mana})|n")
+        return
+
+    script = _get_combat_script(caller.location)
+    if not script or caller not in (script.ndb.combatants or {}):
+        caller.msg("|rYou are not in combat. Use 'attack' to initiate combat first.|n")
+        return
+
+    script.queue_spell(caller, spell["key"])
+    verb = "sing" if flavor == "sing" else "cast"
+    caller.msg(f"|CYou prepare to {verb} |W{spell['key'].title()}|C...|n |x({cost} mana)|n")
+
+
+# ---------------------------------------------------------------------------
 # CmdCast
 # ---------------------------------------------------------------------------
 
@@ -322,59 +385,33 @@ class CmdCast(Command):
     locks = "cmd:all()"
 
     def func(self):
-        caller = self.caller
-        args = self.args.strip()
+        _do_cast(self.caller, self.args.strip())
 
-        if caller.db.is_hidden:
-            caller.db.is_hidden = False
-            caller.msg("|yYour incantation disrupts your stealth!|n")
-            caller.location.msg_contents(
-                f"|y{caller.key} steps out of the shadows!|n", exclude=[caller]
-            )
 
-        if not args:
-            caller.msg("|rUsage: cast <spell name>|n")
+# ---------------------------------------------------------------------------
+# CmdSing
+# ---------------------------------------------------------------------------
+
+class CmdSing(Command):
+    """
+    Sing a bard song at your current target or allies.
+
+    Usage:
+        sing <song name>
+
+    The song fires on the next combat round. Requires sufficient mana.
+    Only Bards can sing songs. Use 'spells' to see known songs and mana.
+    """
+
+    key = "sing"
+    help_category = "Combat"
+    locks = "cmd:all()"
+
+    def func(self):
+        if getattr(self.caller.db, "char_class", None) != "bard":
+            self.caller.msg("|rOnly Bards can sing songs.|n")
             return
-
-        spell = get_spell(args)
-        if not spell:
-            # Try partial match
-            matches = [s for k, s in SPELL_REGISTRY.items() if args.lower() in k]
-            if len(matches) == 1:
-                spell = matches[0]
-            elif len(matches) > 1:
-                names = ", ".join(s["key"] for s in matches)
-                caller.msg(f"|rAmbiguous spell name. Did you mean: {names}?|n")
-                return
-            else:
-                caller.msg(f"|rUnknown spell: '{args}'. Type 'spells' to see your spellbook.|n")
-                return
-
-        known = caller.db.known_spells or []
-        if spell["key"] not in known:
-            caller.msg(f"|rYou don't know '{spell['key']}'.|n")
-            return
-
-        spell_class_school = spell.get("class_school")
-        char_class = getattr(caller.db, "char_class", None)
-        if char_class and spell_class_school:
-            if not can_use_spell_school(char_class, spell_class_school):
-                caller.msg(f"|rYour class cannot cast {spell_class_school}-school spells.|n")
-                return
-
-        mana = caller.db.mana or 0
-        cost = spell["mana_cost"]
-        if mana < cost:
-            caller.msg(f"|rNot enough mana! (need {cost}, have {mana})|n")
-            return
-
-        script = _get_combat_script(caller.location)
-        if not script or caller not in (script.ndb.combatants or {}):
-            caller.msg("|rYou are not in combat. Use 'attack' to initiate combat first.|n")
-            return
-
-        script.queue_spell(caller, spell["key"])
-        caller.msg(f"|CYou prepare to cast |W{spell['key'].title()}|C...|n |x({cost} mana)|n")
+        _do_cast(self.caller, self.args.strip(), flavor="sing")
 
 
 # ---------------------------------------------------------------------------

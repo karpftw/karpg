@@ -39,7 +39,7 @@ CLASS_XP_MULTIPLIERS: dict = {
 
 def _race_xp_modifier(race: str) -> float:
     try:
-        from world.races import RACES
+        from world.races import RACE_REGISTRY as RACES
         data = RACES.get((race or "human").lower(), {})
         return data.get("xp_modifier", 1.0)
     except Exception:

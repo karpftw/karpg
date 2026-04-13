@@ -85,6 +85,102 @@ RACE_REGISTRY = {
             "description": "5% chance to negate any incoming hit.",
         },
     },
+    "half_elf": {
+        "stat_mods": {"str": -1, "agi": 1, "int": 1, "wis": 0, "hlt": -1, "chm": 1},
+        "abilities": ["nightvision", "stealth_bonus"],
+        "magic_resistance_bonus": 0,
+        "xp_modifier": 1.0,
+        "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "elven_heritage",
+            "label": "Elven Heritage",
+            "description": "3% chance to resist any incoming condition application.",
+        },
+    },
+    "dark_elf": {
+        "stat_mods": {"str": -1, "agi": 2, "int": 2, "wis": 1, "hlt": -1, "chm": -3},
+        "abilities": ["nightvision", "stealth_bonus", "magic_resistance"],
+        "magic_resistance_bonus": 5,
+        "xp_modifier": 1.0,
+        "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "shadow_born",
+            "label": "Shadow Born",
+            "description": "+5 accuracy and +5 defense in dungeon rooms.",
+        },
+    },
+    "lizardman": {
+        "stat_mods": {"str": 2, "agi": -1, "int": -2, "wis": -1, "hlt": 2, "chm": -2},
+        "abilities": ["natural_armor"],
+        "magic_resistance_bonus": 0,
+        "xp_modifier": 1.0,
+        "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "scales",
+            "label": "Scales",
+            "description": "Natural scales grant +2 permanent AC.",
+        },
+    },
+    "minotaur": {
+        "stat_mods": {"str": 3, "agi": -1, "int": -2, "wis": -1, "hlt": 2, "chm": -2},
+        "abilities": [],
+        "magic_resistance_bonus": 0,
+        "xp_modifier": 1.0,
+        "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "brutal_charge",
+            "label": "Brutal Charge",
+            "description": "+5 accuracy on the first attack of each combat encounter.",
+        },
+    },
+    "ogre": {
+        "stat_mods": {"str": 3, "agi": -2, "int": -2, "wis": -1, "hlt": 3, "chm": -3},
+        "abilities": [],
+        "magic_resistance_bonus": 0,
+        "xp_modifier": 1.0,
+        "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "thick_hide",
+            "label": "Thick Hide",
+            "description": "Reduce all incoming physical damage by 1.",
+        },
+    },
+    "troll": {
+        "stat_mods": {"str": 2, "agi": -1, "int": -1, "wis": -1, "hlt": 2, "chm": -2},
+        "abilities": ["regeneration"],
+        "magic_resistance_bonus": 0,
+        "xp_modifier": 1.0,
+        "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "regeneration",
+            "label": "Regeneration",
+            "description": "Regenerate +1 HP per combat round.",
+        },
+    },
+    "centaur": {
+        "stat_mods": {"str": 1, "agi": 2, "int": -1, "wis": 1, "hlt": 1, "chm": -1},
+        "abilities": ["outdoor_bonus"],
+        "magic_resistance_bonus": 0,
+        "xp_modifier": 1.0,
+        "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "swift_stride",
+            "label": "Swift Stride",
+            "description": "+10% flee success probability.",
+        },
+    },
+    "vampire": {
+        "stat_mods": {"str": 1, "agi": 1, "int": 2, "wis": 1, "hlt": -2, "chm": 1},
+        "abilities": ["nightvision", "magic_resistance"],
+        "magic_resistance_bonus": 5,
+        "xp_modifier": 1.0,
+        "two_handed_allowed": True,
+        "passive_bonus": {
+            "type": "life_drain",
+            "label": "Life Drain",
+            "description": "Gain +1 HP on every successful melee hit.",
+        },
+    },
 }
 
 

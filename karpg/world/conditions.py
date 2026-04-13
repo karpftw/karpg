@@ -24,6 +24,7 @@ CONDITIONS = {
         "defense_modifier": 0,
         "attacks_modifier": -1,
         "can_act": True,
+        "break_on_damage": False,
         "description": "Sickened by poison; accuracy and attack rate reduced.",
     },
     "stunned": {
@@ -32,6 +33,7 @@ CONDITIONS = {
         "defense_modifier": -20,
         "attacks_modifier": 0,
         "can_act": False,
+        "break_on_damage": False,
         "description": "Stunned; cannot act this round, easier to hit.",
     },
     "paralyzed": {
@@ -40,6 +42,7 @@ CONDITIONS = {
         "defense_modifier": -30,
         "attacks_modifier": 0,
         "can_act": False,
+        "break_on_damage": False,
         "description": "Paralyzed; completely helpless, very easy to hit.",
     },
     "blinded": {
@@ -48,6 +51,7 @@ CONDITIONS = {
         "defense_modifier": -10,
         "attacks_modifier": 0,
         "can_act": True,
+        "break_on_damage": False,
         "description": "Blinded; greatly reduced accuracy, slightly easier to hit.",
     },
     "slowed": {
@@ -56,6 +60,7 @@ CONDITIONS = {
         "defense_modifier": 0,
         "attacks_modifier": -2,
         "can_act": True,
+        "break_on_damage": False,
         "description": "Slowed; fewer attacks per round.",
     },
     "hasted": {
@@ -64,6 +69,7 @@ CONDITIONS = {
         "defense_modifier": 0,
         "attacks_modifier": 2,
         "can_act": True,
+        "break_on_damage": False,
         "description": "Hasted; more attacks per round.",
     },
     "frightened": {
@@ -72,6 +78,7 @@ CONDITIONS = {
         "defense_modifier": 0,
         "attacks_modifier": 0,
         "can_act": True,
+        "break_on_damage": False,
         "description": "Frightened; reduced accuracy.",
     },
     "weakened": {
@@ -80,6 +87,7 @@ CONDITIONS = {
         "defense_modifier": -5,
         "attacks_modifier": 0,
         "can_act": True,
+        "break_on_damage": False,
         "description": "Weakened; slightly reduced combat effectiveness.",
     },
     "provoked": {
@@ -88,6 +96,7 @@ CONDITIONS = {
         "defense_modifier": +5,
         "attacks_modifier": 0,
         "can_act": True,
+        "break_on_damage": False,
         "description": "Provoked; NPCs focus on you — reduced accuracy, increased defense.",
     },
     "hexed": {
@@ -96,6 +105,7 @@ CONDITIONS = {
         "defense_modifier": 0,
         "attacks_modifier": 0,
         "can_act": True,
+        "break_on_damage": False,
         "description": "Hexed; accuracy reduced by a gypsy curse. Stacks up to 3 times.",
     },
     "meditating": {
@@ -104,7 +114,35 @@ CONDITIONS = {
         "defense_modifier": +10,
         "attacks_modifier": 0,
         "can_act": False,
+        "break_on_damage": False,
         "description": "Meditating; cannot act but gains improved defense and Kai regen.",
+    },
+    "inspired": {
+        "name": "inspired",
+        "accuracy_modifier": 10,
+        "defense_modifier": 0,
+        "attacks_modifier": 0,
+        "can_act": True,
+        "break_on_damage": False,
+        "description": "Inspired by song; accuracy improved.",
+    },
+    "demoralized": {
+        "name": "demoralized",
+        "accuracy_modifier": -15,
+        "defense_modifier": -10,
+        "attacks_modifier": 0,
+        "can_act": True,
+        "break_on_damage": False,
+        "description": "Morale shattered; accuracy and defense reduced.",
+    },
+    "sleeping": {
+        "name": "sleeping",
+        "accuracy_modifier": 0,
+        "defense_modifier": -40,
+        "attacks_modifier": 0,
+        "can_act": False,
+        "break_on_damage": True,
+        "description": "Fast asleep; cannot act and is easy to hit.",
     },
 }
 
@@ -127,14 +165,27 @@ def apply_condition(combatant, name, duration=-1, source=None):
     """
     name = name.lower()
 
-    # Elf Spell Resistance: 5% chance to resist
     race = getattr(combatant.db, "race", None)
+
+    # Elf Spell Resistance: 5% chance to resist
     if race == "elf":
         from world.race_bonuses import elf_condition_resist_check
         if elf_condition_resist_check():
             try:
                 combatant.msg(
                     f"|cYour innate spell resistance deflects the {name} condition!|n"
+                )
+            except Exception:
+                pass
+            return
+
+    # Half-Elf Elven Heritage: 3% chance to resist
+    if race == "half_elf":
+        from world.race_bonuses import half_elf_condition_resist_check
+        if half_elf_condition_resist_check():
+            try:
+                combatant.msg(
+                    f"|cYour elven heritage deflects the {name} condition!|n"
                 )
             except Exception:
                 pass

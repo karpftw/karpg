@@ -197,6 +197,114 @@ HEAL = {
 }
 
 # ---------------------------------------------------------------------------
+# Bard songs
+# ---------------------------------------------------------------------------
+
+BATTLE_HYMN = {
+    "key": "battle hymn",
+    "school": "bard", "class_school": "bard",
+    "spell_type": "buff",
+    "mana_cost": 10,
+    "damage_dice": "0d0", "damage_type": "none",
+    "attack_stat": "chm", "save_stat": None,
+    "accuracy_mod": 1.0, "aoe": False,
+    "targets": "allies",
+    "applies_condition": "inspired", "condition_duration": 3,
+    "description": "A rousing hymn fills allies with fighting spirit (+10 acc, 3 rounds).",
+}
+
+TAUNT = {
+    "key": "taunt",
+    "school": "bard", "class_school": "bard",
+    "spell_type": "save",
+    "mana_cost": 8,
+    "damage_dice": "0d0", "damage_type": "none",
+    "attack_stat": "chm", "save_stat": "wis",
+    "accuracy_mod": 1.0, "aoe": False,
+    "targets": "enemy",
+    "applies_condition": "demoralized", "condition_duration": 2,
+    "description": "A sharp verse undermines a single enemy's confidence (-15 acc/-10 def, WIS save).",
+}
+
+LULLABY = {
+    "key": "lullaby",
+    "school": "bard", "class_school": "bard",
+    "spell_type": "save",
+    "mana_cost": 14,
+    "damage_dice": "0d0", "damage_type": "none",
+    "attack_stat": "chm", "save_stat": "wis",
+    "accuracy_mod": 1.0, "aoe": False,
+    "targets": "enemy",
+    "applies_condition": "sleeping", "condition_duration": 4,
+    "description": "A haunting lullaby puts an enemy to sleep (WIS save; broken by damage).",
+}
+
+DIRGE_OF_DESPAIR = {
+    "key": "dirge of despair",
+    "school": "bard", "class_school": "bard",
+    "spell_type": "save",
+    "mana_cost": 16,
+    "damage_dice": "0d0", "damage_type": "none",
+    "attack_stat": "chm", "save_stat": "wis",
+    "accuracy_mod": 1.0, "aoe": True,
+    "targets": "all_enemies",
+    "applies_condition": "demoralized", "condition_duration": 2,
+    "description": "A funeral dirge crushes the morale of all enemies (WIS save each).",
+}
+
+MOCKING_VERSE = {
+    "key": "mocking verse",
+    "school": "bard", "class_school": "bard",
+    "spell_type": "save",
+    "mana_cost": 10,
+    "damage_dice": "1d6", "damage_type": "thunder",
+    "attack_stat": "chm", "save_stat": "wis",
+    "accuracy_mod": 1.0, "aoe": False,
+    "targets": "enemy",
+    "applies_condition": "demoralized", "condition_duration": 2,
+    "description": "A mocking verse deals thunder damage and demoralizes the target (WIS save).",
+}
+
+SOOTHING_MELODY = {
+    "key": "soothing melody",
+    "school": "bard", "class_school": "bard",
+    "spell_type": "heal",
+    "mana_cost": 14,
+    "damage_dice": "2d6", "damage_type": "healing",
+    "attack_stat": "chm", "save_stat": None,
+    "accuracy_mod": 1.0, "aoe": False,
+    "targets": "allies",
+    "applies_condition": None, "condition_duration": 0,
+    "description": "A calming melody heals all allies for 2d6 HP.",
+}
+
+CHORD_OF_DISCORD = {
+    "key": "chord of discord",
+    "school": "bard", "class_school": "bard",
+    "spell_type": "save",
+    "mana_cost": 18,
+    "damage_dice": "3d6", "damage_type": "thunder",
+    "attack_stat": "chm", "save_stat": "wis",
+    "accuracy_mod": 1.0, "aoe": True,
+    "targets": "all_enemies",
+    "applies_condition": "stunned", "condition_duration": 1,
+    "description": "A dissonant chord blasts all enemies with thunder damage (WIS save or stunned 1 round).",
+}
+
+WAR_CHANT = {
+    "key": "war chant",
+    "school": "bard", "class_school": "bard",
+    "spell_type": "buff",
+    "mana_cost": 12,
+    "damage_dice": "0d0", "damage_type": "none",
+    "attack_stat": "chm", "save_stat": None,
+    "accuracy_mod": 1.0, "aoe": False,
+    "targets": "allies",
+    "applies_condition": "inspired", "condition_duration": 4,
+    "description": "An aggressive war chant buffs all allies' accuracy for 4 rounds.",
+}
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -207,6 +315,9 @@ _ALL_SPELLS = [
     SACRED_FLAME, BURNING_HANDS, FIREBALL, HOLD_PERSON, THUNDERWAVE,
     # Heal
     CURE_WOUNDS, HEAL,
+    # Bard songs
+    BATTLE_HYMN, TAUNT, LULLABY, DIRGE_OF_DESPAIR,
+    MOCKING_VERSE, SOOTHING_MELODY, CHORD_OF_DISCORD, WAR_CHANT,
 ]
 
 SPELL_REGISTRY = {spell["key"]: spell for spell in _ALL_SPELLS}

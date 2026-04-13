@@ -25,7 +25,7 @@ import random
 from evennia import DefaultScript
 from evennia.utils.utils import inherits_from
 
-from world.combat_engine import resolve_attack, resolve_spell, roll_flee, hp_colour, hp_bar
+from world.combat_engine import resolve_attack, resolve_spell, resolve_buff_spell, roll_flee, hp_colour, hp_bar
 from world.spells import get_spell
 from world.conditions import can_act, tick_conditions, get_combat_modifiers
 from world.stats import get_attacks_per_round, get_mana_regen
@@ -120,6 +120,7 @@ class CombatScript(DefaultScript):
             "flee_queued":   False,
         }
         combatant.db.in_combat = self
+        combatant.ndb.first_combat_round = True
 
         # Stop resting if they enter combat
         if combatant.db.is_resting:
@@ -268,12 +269,17 @@ class CombatScript(DefaultScript):
                 if effective_mode == "backstab":
                     state["attack_mode"] = "normal"
 
+        # Clear first-round flag for all combatants after attacks resolve
+        for combatant in (self.ndb.combatants or {}):
+            combatant.ndb.first_combat_round = False
+
         # End-of-round housekeeping
         self._tick_mana_regen()
         self._tick_all_conditions()
         self._tick_perception_checks()
         self._tick_battlecry()
         self._tick_consecrate()
+        self._tick_troll_regen()
         self._broadcast_hp_status()
         self._check_end_conditions()
 
@@ -327,19 +333,72 @@ class CombatScript(DefaultScript):
             )
             return
 
-        # AOE spells hit all enemies
-        targets = [target]
-        if spell.get("aoe"):
+        # Determine target list based on targets field (or legacy aoe flag)
+        combatants = self.ndb.combatants or {}
+        targets_mode = spell.get("targets", "all_enemies" if spell.get("aoe") else "enemy")
+
+        if targets_mode == "allies":
             targets = [
-                c for c, s in (self.ndb.combatants or {}).items()
+                c for c, s in combatants.items()
+                if s["faction"] == state["faction"] and (c.db.hp or 0) > 0
+            ]
+            if combatant not in targets:
+                targets.append(combatant)
+        elif targets_mode == "all_enemies":
+            targets = [
+                c for c, s in combatants.items()
                 if s["faction"] != state["faction"] and (c.db.hp or 0) > 0
             ]
+        else:  # "enemy" — single target
+            targets = [target] if target else []
+
+        # Buff spells use a separate resolver (no hit roll, no mana per-target)
+        spell_type = spell.get("spell_type", "attack")
+        if spell_type == "buff":
+            # Deduct mana once
+            combatant.db.mana = max(0, mana - spell["mana_cost"])
+            results = resolve_buff_spell(combatant, targets, spell)
+            for t, result in zip(targets, results):
+                self._broadcast_buff(result, combatant, t, spell)
+            # Performance duration extension
+            self._apply_performance_bonus(combatant, targets, spell)
+            return
+
+        # Heal with ally targeting: iterate targets calling resolve_spell
+        # resolve_spell deducts mana each time, so only charge once total
+        if spell_type == "heal" and targets_mode == "allies":
+            # Deduct mana once upfront, then call resolve_spell with cost=0 copies
+            combatant.db.mana = max(0, mana - spell["mana_cost"])
+            zero_cost_spell = dict(spell, mana_cost=0)
+            for t in targets:
+                result = resolve_spell(combatant, t, zero_cost_spell)
+                self._broadcast_spell(result, combatant, t, spell)
+            return
 
         for t in targets:
             result = resolve_spell(combatant, t, spell)
             self._broadcast_spell(result, combatant, t, spell)
+            # Performance extension for condition-applying save spells
+            if result.condition_applied:
+                self._apply_performance_bonus(combatant, [t], spell, result.condition_applied)
             if (t.db.hp or 0) <= 0:
                 self._handle_death(t, combatant)
+
+    def _apply_performance_bonus(self, caster, targets, spell, condition_name=None):
+        """Extend condition duration on targets by caster's performance skill level."""
+        from world.skills import performance_duration_bonus
+        bonus = performance_duration_bonus(caster)
+        if not bonus:
+            return
+        cond_name = condition_name or spell.get("applies_condition")
+        if not cond_name:
+            return
+        for t in targets:
+            conds = t.db.conditions or []
+            for cond in conds:
+                if cond.get("name") == cond_name:
+                    cond["duration"] = (cond.get("duration", 0) or 0) + bonus
+            t.db.conditions = conds
 
     # ------------------------------------------------------------------
     # Death handling
@@ -494,6 +553,21 @@ class CombatScript(DefaultScript):
             self._send(caster, f"Your |W{spell_name}|n fizzles against {target.key}!")
             self._send(target, f"{caster.key}'s |W{spell_name}|n fizzles!")
 
+    def _broadcast_buff(self, result, caster, target, spell):
+        """Send buff song messages (ally targeting)."""
+        song_name = spell["key"].title()
+        cond = result.condition_applied
+        cond_note = f" |y[{cond.upper()}]|n" if cond else ""
+        if caster is target:
+            self._send(caster, f"|MYour |W{song_name}|n fills you with resolve!{cond_note}")
+        else:
+            self._send(caster, f"|M{song_name}|n bolsters |W{target.key}|n!{cond_note}")
+            self._send(target, f"|M{caster.key}'s {song_name}|n bolsters you!{cond_note}")
+        self._broadcast(
+            f"|M{caster.key} sings {song_name}!|n",
+            exclude=[caster, target],
+        )
+
     def _broadcast_hp_status(self):
         """Send end-of-round status to each player combatant."""
         combatants = self.ndb.combatants or {}
@@ -625,6 +699,21 @@ class CombatScript(DefaultScript):
         if room.db.consecrated_ticks <= 0:
             room.db.consecrated_ticks = 0
             self._broadcast("|xThe holy consecration fades.|n")
+
+    def _tick_troll_regen(self):
+        """Regenerate HP each combat round for Troll combatants."""
+        from world.race_bonuses import troll_combat_regen
+        for combatant in (self.ndb.combatants or {}):
+            if getattr(combatant.db, "race", None) != "troll":
+                continue
+            if (combatant.db.hp or 0) <= 0:
+                continue
+            hp_max = combatant.db.hp_max or 1
+            current_hp = combatant.db.hp or 0
+            if current_hp < hp_max:
+                heal = troll_combat_regen()
+                combatant.db.hp = min(hp_max, current_hp + heal)
+                self._send(combatant, f"|gYour regeneration restores {heal} HP.|n")
 
     # ------------------------------------------------------------------
     # End-condition check

@@ -23,6 +23,7 @@ from .combat import (
     CmdSmash,
     CmdBackstab,
     CmdCast,
+    CmdSing,
     CmdFlee,
     CmdRank,
     CmdSpells,
@@ -71,6 +72,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdSmash)
         self.add(CmdBackstab)
         self.add(CmdCast)
+        self.add(CmdSing)
         self.add(CmdFlee)
         self.add(CmdRank)
         self.add(CmdSpells)

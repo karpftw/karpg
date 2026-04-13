@@ -66,7 +66,7 @@ SKILL_REGISTRY = {
         "stats": ["agi"],
         "class_abilities": ["dodge"],
         "race_abilities": [],
-        "race_bonus": {"elf": 2, "halfling": 2},
+        "race_bonus": {"elf": 2, "halfling": 2, "centaur": 2},
         "cp_learn": 8,
         "cp_per_level": 5,
         "max_level": 5,
@@ -172,7 +172,7 @@ SKILL_REGISTRY = {
         "stats": ["agi"],
         "class_abilities": ["stealth"],
         "race_abilities": ["stealth_bonus"],
-        "race_bonus": {"elf": 2, "halfling": 2},
+        "race_bonus": {"elf": 2, "halfling": 2, "dark_elf": 3, "half_elf": 1},
         "cp_learn": 0,
         "cp_per_level": 0,
         "max_level": 1,
@@ -422,6 +422,22 @@ SKILL_REGISTRY = {
         "auto_grant": False,
         "cooldown": 30,
         "description": "Reveal hidden item stats. INT+level×3 check.",
+    },
+
+    # ── Performance (passive, Bard — auto-granted) ────────────────────────────
+    "performance": {
+        "name": "Performance",
+        "type": "passive",
+        "stats": ["chm"],
+        "class_abilities": ["performance"],
+        "race_abilities": [],
+        "race_bonus": {},
+        "cp_learn": 0,
+        "cp_per_level": 4,
+        "max_level": 5,
+        "auto_grant": True,
+        "cooldown": 0,
+        "description": "Extends the duration of Bard songs by 1 round per level.",
     },
 }
 
@@ -953,3 +969,9 @@ def unarmed_damage_dice(char):
         "none":    ["1d4", "1d6", "1d8"],
     }
     return form_dice.get(form, form_dice["none"])[tier]
+
+
+def performance_duration_bonus(char):
+    """Return extra rounds added to buff/debuff song duration. 0 for non-Bards."""
+    level = skill_level(char, "performance")
+    return level if level > 0 else 0

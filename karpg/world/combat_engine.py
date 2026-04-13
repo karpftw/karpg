@@ -332,8 +332,19 @@ def resolve_attack(attacker, target, mode="normal"):
     # Apply damage
     target.db.hp = max(0, (target.db.hp or 0) - result.final_damage)
 
+    # Break damage-sensitive conditions (e.g. sleeping)
+    if result.final_damage > 0:
+        _check_break_conditions(target)
+
     # Update threat table if target is an NPC with one
     _update_threat(target, attacker, result.final_damage)
+
+    # Vampire Life Drain: heal attacker 1 HP per successful hit
+    if result.final_damage > 0 and getattr(attacker.db, "race", None) == "vampire":
+        from .race_bonuses import vampire_life_drain_heal
+        heal = vampire_life_drain_heal()
+        hp_max = attacker.db.hp_max or 1
+        attacker.db.hp = min(hp_max, (attacker.db.hp or 0) + heal)
 
     result.attacker_hp = attacker.db.hp or 0
     result.attacker_max_hp = attacker.db.hp_max or 1
@@ -343,8 +354,13 @@ def resolve_attack(attacker, target, mode="normal"):
 
 
 def _get_dr(target):
-    """Get the flat damage resistance value from target."""
-    return getattr(target.db, "dr", 0) or 0
+    """Get the flat damage resistance value from target, including racial bonuses."""
+    dr = getattr(target.db, "dr", 0) or 0
+    # Ogre Thick Hide: +1 flat DR
+    if getattr(target.db, "race", None) == "ogre":
+        from .race_bonuses import ogre_thick_hide_dr
+        dr += ogre_thick_hide_dr()
+    return dr
 
 
 def _update_threat(target, attacker, damage):
@@ -404,6 +420,8 @@ def resolve_spell(caster, target, spell):
             dmg, _ = roll_notation(notation)
             target.db.hp = max(0, (target.db.hp or 0) - dmg)
             result.damage = dmg
+            if dmg > 0:
+                _check_break_conditions(target)
             _update_threat(target, caster, dmg)
 
     elif spell_type == "save":
@@ -412,14 +430,17 @@ def resolve_spell(caster, target, spell):
         dmg, _ = roll_notation(notation)
         save_stat = spell.get("save_stat", "agi")
         target_stat_val = getattr(target.db, save_stat, 10) or 10
-        caster_int = getattr(caster.db, "int", 10) or 10
-        spell_dc = 10 + caster_int // 3
+        caster_stat = spell.get("attack_stat", "int")
+        caster_stat_val = getattr(caster.db, caster_stat, 10) or 10
+        spell_dc = 10 + caster_stat_val // 3
         save_roll = roll_die(20) + target_stat_val // 3
         if save_roll >= spell_dc:
             dmg = dmg // 2  # half damage on successful save
         target.db.hp = max(0, (target.db.hp or 0) - dmg)
         result.damage = dmg
         result.hit = True
+        if dmg > 0:
+            _check_break_conditions(target)
         _update_threat(target, caster, dmg)
 
         # Apply condition if the spell has one and the save failed
@@ -447,8 +468,77 @@ def roll_flee(combatant):
     AGI-based flee success check.
 
     Base 20% + 1% per AGI point, capped at 90%.
+    Centaur Swift Stride adds +10%.
     Returns True on success.
     """
     agi = getattr(combatant.db, "agi", 10) or 10
-    chance = min(0.9, 0.20 + agi / 100.0)
-    return random.random() < chance
+    chance = 0.20 + agi / 100.0
+    # Centaur Swift Stride: +10% flee probability
+    if getattr(combatant.db, "race", None) == "centaur":
+        from .race_bonuses import centaur_flee_bonus
+        chance += centaur_flee_bonus()
+    return random.random() < min(0.9, chance)
+
+
+# ---------------------------------------------------------------------------
+# resolve_buff_spell
+# ---------------------------------------------------------------------------
+
+def resolve_buff_spell(caster, targets, spell):
+    """
+    Apply a buff song to a list of ally targets.
+
+    No hit roll needed — buffs always land on allies.
+    Returns list of SpellResult (one per target), consuming mana only once
+    from the first call (mana deduction is done by the caller before this).
+    """
+    from .conditions import apply_condition
+    results = []
+    for target in targets:
+        result = SpellResult()
+        result.caster_name = caster.key
+        result.target_name = target.key
+        result.spell_key = spell["key"]
+        result.spell_type = "buff"
+        result.mana_cost = 0  # mana already deducted by caller
+        result.mana_spent = 0
+        result.hit = True
+
+        applies = spell.get("applies_condition")
+        if applies:
+            dur = spell.get("condition_duration", -1)
+            apply_condition(target, applies, duration=dur, source=caster.key)
+            result.condition_applied = applies
+
+        result.caster_hp = caster.db.hp or 0
+        result.caster_max_hp = caster.db.hp_max or 1
+        result.caster_mana = caster.db.mana or 0
+        result.caster_max_mana = caster.db.max_mana or 1
+        result.target_hp = target.db.hp or 0
+        result.target_max_hp = target.db.hp_max or 1
+        results.append(result)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# _check_break_conditions
+# ---------------------------------------------------------------------------
+
+def _check_break_conditions(target):
+    """Remove conditions with break_on_damage=True after target takes damage."""
+    from .conditions import CONDITIONS
+    conds = target.db.conditions or []
+    broken = [c for c in conds if CONDITIONS.get(c["name"], {}).get("break_on_damage")]
+    if broken:
+        target.db.conditions = [c for c in conds if c not in broken]
+        for c in broken:
+            if c["name"] == "sleeping":
+                try:
+                    target.msg("|yYou wake with a start!|n")
+                except Exception:
+                    pass
+            else:
+                try:
+                    target.msg(f"|yThe {c['name']} condition is broken!|n")
+                except Exception:
+                    pass

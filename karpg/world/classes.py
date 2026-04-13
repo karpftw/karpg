@@ -126,6 +126,18 @@ CLASS_REGISTRY = {
         "abilities": ["unarmed_forms", "kai_energy", "dodge"],
         "armor_types": ["cloth"],
     },
+    "bard": {
+        "hp_per_level_min": 3,
+        "hp_per_level_max": 6,
+        "hp_per_level_avg": 4,
+        "magic_school": "bard",
+        "magic_level": 2,
+        "weapon_types": ["dagger", "sword"],
+        "two_handed_allowed": False,
+        "combat_rating": 2,
+        "abilities": ["performance", "songs"],
+        "armor_types": ["cloth", "leather"],
+    },
 }
 
 

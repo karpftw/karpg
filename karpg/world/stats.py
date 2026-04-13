@@ -67,9 +67,13 @@ def get_accuracy(combatant):
     # Battle cry buff (tracked in db.battlecry_bonus)
     acc += getattr(combatant.db, "battlecry_bonus", 0) * 5
 
-    # Dwarf Stonecunning: +10 acc in dungeon rooms
-    from world.race_bonuses import stonecunning_bonus, half_orc_blood_rage_bonus
+    from world.race_bonuses import (
+        stonecunning_bonus, half_orc_blood_rage_bonus,
+        dark_elf_shadow_born_bonus, minotaur_brutal_charge_bonus,
+    )
     race = getattr(combatant.db, "race", None)
+
+    # Dwarf Stonecunning: +10 acc in dungeon rooms
     if race == "dwarf":
         acc_sc, _ = stonecunning_bonus(combatant)
         acc += acc_sc
@@ -77,6 +81,15 @@ def get_accuracy(combatant):
     # Half-Orc Blood Rage: +5 acc when HP < 25%
     if race == "half_orc":
         acc += half_orc_blood_rage_bonus(combatant)
+
+    # Dark Elf Shadow Born: +5 acc in dungeon rooms
+    if race == "dark_elf":
+        acc_db, _ = dark_elf_shadow_born_bonus(combatant)
+        acc += acc_db
+
+    # Minotaur Brutal Charge: +5 acc on first round of combat
+    if race == "minotaur":
+        acc += minotaur_brutal_charge_bonus(combatant)
 
     return acc
 
@@ -87,12 +100,24 @@ def get_defense(combatant):
     agi = _stat(combatant, "agi")
     defense = ac + agi // 10
 
-    # Dwarf Stonecunning: +10 def in dungeon rooms
     race = getattr(combatant.db, "race", None)
+
+    # Dwarf Stonecunning: +10 def in dungeon rooms
     if race == "dwarf":
         from world.race_bonuses import stonecunning_bonus
         _, def_sc = stonecunning_bonus(combatant)
         defense += def_sc
+
+    # Lizardman Scales: +2 AC from natural armor
+    if race == "lizardman":
+        from world.race_bonuses import lizardman_natural_armor_bonus
+        defense += lizardman_natural_armor_bonus()
+
+    # Dark Elf Shadow Born: +5 def in dungeon rooms
+    if race == "dark_elf":
+        from world.race_bonuses import dark_elf_shadow_born_bonus
+        _, def_db = dark_elf_shadow_born_bonus(combatant)
+        defense += def_db
 
     return defense
 
@@ -121,7 +146,12 @@ def get_max_mana(combatant):
     if magic_level == 0 or cls["magic_school"] == "kai":
         return 0
     level = _stat(combatant, "level", 1)
-    return 6 + 2 * magic_level * level
+    mana = 6 + 2 * magic_level * level
+    # Bards get +2 mana per CHM above baseline (10)
+    if cls.get("magic_school") == "bard":
+        chm = _stat(combatant, "chm", 10)
+        mana += max(0, chm - 10) * 2
+    return mana
 
 
 def get_max_kai(combatant):
